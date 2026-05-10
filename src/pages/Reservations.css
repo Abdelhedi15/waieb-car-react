@@ -1,0 +1,22 @@
+.booked-day {
+  background: #fc8181 !important;
+  color: white !important;
+  border-radius: 50% !important;
+}
+
+.react-calendar {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  padding: 8px !important;
+  font-family: 'Segoe UI', sans-serif !important;
+}
+
+.react-calendar__tile--active {
+  background: #1a56db !important;
+  border-radius: 8px !important;
+}
+
+.react-calendar__tile--now {
+  background: #bee3f8 !important;
+  border-radius: 8px !important;
+}
