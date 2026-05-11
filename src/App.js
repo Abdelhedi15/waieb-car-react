@@ -13,6 +13,8 @@ import Payments from './pages/Payments';
 import Contracts from './pages/Contracts';
 import Users from './pages/Users';
 import Confirmations from './pages/Confirmations';
+import MapPage from './pages/MapPage';
+
 
 const PrivateRoute = ({ children, adminOnly = false }) => {
   const { user } = useAuth();
@@ -41,6 +43,7 @@ function App() {
           <Layout><Confirmations /></Layout>
         </PrivateRoute>
       } />
+      <Route path="/map" element={<PrivateRoute><Layout><MapPage /></Layout></PrivateRoute>} />
       <Route path="/contracts" element={<PrivateRoute><Layout><Contracts /></Layout></PrivateRoute>} />
       <Route path="/users" element={
         <PrivateRoute adminOnly={true}>

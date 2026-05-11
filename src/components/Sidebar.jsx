@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Car, Users, CalendarDays,
   CreditCard, FileText, UserCog, LogOut,
-  ChevronDown, PlusCircle, List, ShieldCheck, Bell,
+  ChevronDown, PlusCircle, List, ShieldCheck, Bell, MapPin,
 } from 'lucide-react';
 import api from '../api/axios';
 import './Sidebar.css';
@@ -19,7 +19,6 @@ const Sidebar = () => {
   );
   const [pendingCount, setPendingCount] = useState(0);
 
-  // ── Live badge — refresh every 10s
   useEffect(() => {
     const fetchPending = async () => {
       try {
@@ -84,7 +83,7 @@ const Sidebar = () => {
           Clients
         </NavLink>
 
-        {/* ── Confirmations — with live badge */}
+        {/* Confirmations with live badge */}
         <NavLink to="/confirmations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           <span className="nav-icon" style={{ position: 'relative' }}>
             <Bell size={17} />
@@ -135,6 +134,11 @@ const Sidebar = () => {
         <NavLink to="/payments" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           <span className="nav-icon"><CreditCard size={17} /></span>
           Paiements
+        </NavLink>
+
+        <NavLink to="/map" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          <span className="nav-icon"><MapPin size={17} /></span>
+          Carte
         </NavLink>
 
         <NavLink to="/contracts" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
