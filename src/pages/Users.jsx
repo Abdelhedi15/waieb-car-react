@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Users as UsersIcon, UserPlus, Pencil, Trash2,
   ShieldCheck, UserCheck, Eye, EyeOff,
-  KeyRound, Search,
+  KeyRound, Search, User as UserIcon,
 } from 'lucide-react';
 import api from '../api/axios';
 
@@ -11,6 +11,7 @@ const AMBER  = '#E8A020';
 const GREEN  = '#16A34A';
 const PURPLE = '#7C3AED';
 const RED    = '#DC2626';
+const ORANGE = '#D97706';
 
 const EMPTY_FORM = {
   username: '', password: '', nom: '', prenom: '', email: '', role: 'employee',
@@ -85,6 +86,15 @@ const Users = () => {
 
   const admins    = users.filter(u => u.role === 'admin').length;
   const employees = users.filter(u => u.role === 'employee').length;
+  const clients   = users.filter(u => u.role === 'client').length;
+
+  const getRoleCfg = (role) => {
+    if (role === 'admin')
+      return { label: 'Administrateur', color: PURPLE, bg: '#F3EEFF', border: '#DDD6FE', icon: <ShieldCheck size={12} />, avatarBg: NAVY };
+    if (role === 'client')
+      return { label: 'Client',          color: ORANGE, bg: '#FEF3C7', border: '#FCD34D', icon: <UserIcon size={12} />,    avatarBg: ORANGE };
+    return   { label: 'Employé',         color: GREEN,  bg: '#DCFCE7', border: '#86EFAC', icon: <UserCheck size={12} />,  avatarBg: GREEN };
+  };
 
   return (
     <div>
@@ -100,11 +110,12 @@ const Users = () => {
       </div>
 
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginBottom: '22px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '22px' }}>
         {[
-          { label: 'Total utilisateurs', value: users.length,  color: NAVY,   bg: '#EFF4FB', icon: <UsersIcon size={20} /> },
+          { label: 'Total utilisateurs', value: users.length, color: NAVY,   bg: '#EFF4FB', icon: <UsersIcon size={20} /> },
           { label: 'Administrateurs',    value: admins,        color: PURPLE, bg: '#F3EEFF', icon: <ShieldCheck size={20} /> },
           { label: 'Employés',           value: employees,     color: GREEN,  bg: '#DCFCE7', icon: <UserCheck size={20} /> },
+          { label: 'Clients',            value: clients,       color: ORANGE, bg: '#FEF3C7', icon: <UserIcon size={20} /> },
         ].map(s => (
           <div key={s.label} className="card" style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '18px 20px' }}>
             <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: s.bg, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -120,17 +131,11 @@ const Users = () => {
 
       {/* Table card */}
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-
-        {/* Card header */}
         <div style={{ padding: '14px 20px', borderBottom: '1px solid #F0F2F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
-          <h3 style={{ color: NAVY, fontWeight: '700', fontSize: '15px', margin: 0 }}>
-            Liste des utilisateurs
-          </h3>
+          <h3 style={{ color: NAVY, fontWeight: '700', fontSize: '15px', margin: 0 }}>Liste des utilisateurs</h3>
           <div style={{ position: 'relative', minWidth: '220px' }}>
             <Search size={13} color="#94A3B8" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-            <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Rechercher..."
-              style={{ paddingLeft: '30px', fontSize: '13px' }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher..." style={{ paddingLeft: '30px', fontSize: '13px' }} />
           </div>
         </div>
 
@@ -151,16 +156,14 @@ const Users = () => {
                 Aucun utilisateur trouvé
               </td></tr>
             ) : filtered.map(u => {
-              const isAdmin   = u.role === 'admin';
-              const avatarBg  = isAdmin ? NAVY : GREEN;
-              const roleCfg   = isAdmin
-                ? { label: 'Administrateur', color: PURPLE, bg: '#F3EEFF', border: '#DDD6FE', icon: <ShieldCheck size={12} /> }
-                : { label: 'Employé',         color: GREEN,  bg: '#DCFCE7', border: '#86EFAC', icon: <UserCheck size={12} /> };
+              const roleCfg = getRoleCfg(u.role);
+              const isAdmin = u.role === 'admin';
+              const isClient = u.role === 'client';
               return (
                 <tr key={u.id}>
                   <td style={{ paddingLeft: '20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: avatarBg, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '13px', flexShrink: 0, letterSpacing: '-0.5px' }}>
+                      <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: roleCfg.avatarBg, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '13px', flexShrink: 0 }}>
                         {u.prenom?.[0]}{u.nom?.[0]}
                       </div>
                       <div>
@@ -182,18 +185,22 @@ const Users = () => {
                   </td>
                   <td style={{ paddingRight: '20px', textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                      <button onClick={() => openEdit(u)}
-                        style={{ padding: '6px 12px', background: NAVY, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <Pencil size={13} /> Modifier
-                      </button>
-                      <button onClick={() => resetPassword(u)}
-                        style={{ padding: '6px 12px', background: '#FEF3DC', color: '#92580A', border: '1px solid #FCD34D', borderRadius: '7px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <KeyRound size={13} /> MDP
-                      </button>
-                      {!isAdmin && (
+                      {!isClient && (
+                        <button onClick={() => openEdit(u)}
+                          style={{ padding: '6px 12px', background: NAVY, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <Pencil size={13} /> Modifier
+                        </button>
+                      )}
+                      {!isClient && !isAdmin && (
+                        <button onClick={() => resetPassword(u)}
+                          style={{ padding: '6px 12px', background: '#FEF3DC', color: '#92580A', border: '1px solid #FCD34D', borderRadius: '7px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <KeyRound size={13} /> MDP
+                        </button>
+                      )}
+                      {!isAdmin && !isClient && (
                         <button onClick={() => handleDelete(u.id)}
                           style={{ padding: '6px 10px', background: '#FEE2E2', color: RED, border: '1px solid #FECACA', borderRadius: '7px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: '700' }}>
-                          <Trash2 size={13} /> Supprimer
+                          <Trash2 size={13} />
                         </button>
                       )}
                     </div>
@@ -205,19 +212,15 @@ const Users = () => {
         </table>
       </div>
 
-      {/* Modal */}
+      {/* Modal — only for admin/employee, not client */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
             <h2 style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-              {editingUser
-                ? <><Pencil size={17} /> Modifier l'utilisateur</>
-                : <><UserPlus size={17} /> Nouvel employé</>}
+              {editingUser ? <><Pencil size={17} /> Modifier l'utilisateur</> : <><UserPlus size={17} /> Nouvel employé</>}
             </h2>
-
             <form onSubmit={handleSubmit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-
                 <div className="form-group">
                   <label>Prénom <span style={{ color: RED }}>*</span></label>
                   <input value={form.prenom} onChange={e => setForm({ ...form, prenom: e.target.value })} required placeholder="ex: Yassine" />
@@ -234,40 +237,29 @@ const Users = () => {
                   <label>Email</label>
                   <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="ex: yassine@waieb.tn" />
                 </div>
-
-                {/* Password */}
                 <div className="form-group" style={{ gridColumn: '1/-1' }}>
-                  <label>
-                    {editingUser ? 'Nouveau mot de passe (laisser vide = inchangé)' : <>Mot de passe <span style={{ color: RED }}>*</span></>}
-                  </label>
+                  <label>{editingUser ? 'Nouveau mot de passe (laisser vide = inchangé)' : <>Mot de passe <span style={{ color: RED }}>*</span></>}</label>
                   <div style={{ position: 'relative' }}>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={form.password}
+                    <input type={showPassword ? 'text' : 'password'} value={form.password}
                       onChange={e => setForm({ ...form, password: e.target.value })}
-                      required={!editingUser}
-                      placeholder={editingUser ? 'Laisser vide pour ne pas changer' : 'Mot de passe'}
-                      style={{ paddingRight: '44px' }}
-                    />
+                      required={!editingUser} placeholder={editingUser ? 'Laisser vide pour ne pas changer' : 'Mot de passe'}
+                      style={{ paddingRight: '44px' }} />
                     <button type="button" onClick={() => setShowPassword(!showPassword)}
                       style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', display: 'flex', alignItems: 'center' }}>
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
                 </div>
-
-                {/* Role */}
                 <div className="form-group" style={{ gridColumn: '1/-1' }}>
                   <label>Rôle</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
                     {[
-                      { value: 'employee', label: 'Employé',        icon: <UserCheck size={16} />, color: GREEN,  bg: '#DCFCE7', border: '#86EFAC' },
+                      { value: 'employee', label: 'Employé',        icon: <UserCheck size={16} />,   color: GREEN,  bg: '#DCFCE7', border: '#86EFAC' },
                       { value: 'admin',    label: 'Administrateur', icon: <ShieldCheck size={16} />, color: PURPLE, bg: '#F3EEFF', border: '#DDD6FE' },
                     ].map(r => {
                       const active = form.role === r.value;
                       return (
-                        <button key={r.value} type="button"
-                          onClick={() => setForm({ ...form, role: r.value })}
+                        <button key={r.value} type="button" onClick={() => setForm({ ...form, role: r.value })}
                           style={{ padding: '11px 14px', border: `2px solid ${active ? r.color : '#DDE3ED'}`, borderRadius: '9px', cursor: 'pointer', background: active ? r.bg : 'white', color: active ? r.color : '#64748B', fontWeight: '700', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.14s', justifyContent: 'center' }}>
                           {r.icon} {r.label}
                         </button>
@@ -276,7 +268,6 @@ const Users = () => {
                   </div>
                 </div>
               </div>
-
               <div className="modal-actions">
                 <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)}>Annuler</button>
                 <button type="submit" className="btn btn-primary" disabled={loading}>
