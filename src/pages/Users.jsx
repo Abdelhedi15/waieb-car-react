@@ -14,7 +14,7 @@ const RED    = '#DC2626';
 const ORANGE = '#D97706';
 
 const EMPTY_FORM = {
-  username: '', password: '', nom: '', prenom: '', email: '', role: 'employee',
+  username: '', nom: '', prenom: '', email: '', role: 'employee',
 };
 
 const Users = () => {
@@ -24,6 +24,7 @@ const Users = () => {
   const [form,         setForm]         = useState(EMPTY_FORM);
   const [loading,      setLoading]      = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [editPassword, setEditPassword] = useState('');
   const [search,       setSearch]       = useState('');
 
   useEffect(() => { fetchUsers(); }, []);
@@ -38,13 +39,20 @@ const Users = () => {
   const openAdd = () => {
     setEditingUser(null);
     setForm(EMPTY_FORM);
-    setShowPassword(false);
+    setEditPassword('');
     setShowModal(true);
   };
 
   const openEdit = (user) => {
     setEditingUser(user);
-    setForm({ username: user.username, password: '', nom: user.nom || '', prenom: user.prenom || '', email: user.email || '', role: user.role || 'employee' });
+    setForm({
+      username: user.username,
+      nom: user.nom || '',
+      prenom: user.prenom || '',
+      email: user.email || '',
+      role: user.role || 'employee',
+    });
+    setEditPassword('');
     setShowPassword(false);
     setShowModal(true);
   };
@@ -53,10 +61,15 @@ const Users = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const data = { ...form };
-      if (editingUser && !data.password) delete data.password;
-      if (editingUser) await api.put(`/auth/users/${editingUser.id}/`, data);
-      else             await api.post('/auth/users/', data);
+      if (editingUser) {
+        // Modification : envoyer le mot de passe seulement si rempli
+        const data = { ...form };
+        if (editPassword) data.password = editPassword;
+        await api.put(`/auth/users/${editingUser.id}/`, data);
+      } else {
+        // Création : ne pas envoyer de mot de passe — généré côté serveur
+        await api.post('/auth/users/', { ...form });
+      }
       fetchUsers();
       setShowModal(false);
     } catch (err) {
@@ -212,13 +225,21 @@ const Users = () => {
         </table>
       </div>
 
-      {/* Modal — only for admin/employee, not client */}
+      {/* Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
             <h2 style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
               {editingUser ? <><Pencil size={17} /> Modifier l'utilisateur</> : <><UserPlus size={17} /> Nouvel employé</>}
             </h2>
+
+            {/* Info création : mot de passe auto */}
+            {!editingUser && (
+              <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', fontSize: '13px', color: '#1D4ED8', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                🔐 Un mot de passe sera généré automatiquement et envoyé par email à l'employé.
+              </div>
+            )}
+
             <form onSubmit={handleSubmit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div className="form-group">
@@ -234,22 +255,28 @@ const Users = () => {
                   <input value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} required placeholder="ex: yassine" />
                 </div>
                 <div className="form-group">
-                  <label>Email</label>
-                  <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="ex: yassine@waieb.tn" />
+                  <label>Email <span style={{ color: RED }}>*</span></label>
+                  <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
+                    required={!editingUser} placeholder="ex: yassine@waieb.tn" />
                 </div>
-                <div className="form-group" style={{ gridColumn: '1/-1' }}>
-                  <label>{editingUser ? 'Nouveau mot de passe (laisser vide = inchangé)' : <>Mot de passe <span style={{ color: RED }}>*</span></>}</label>
-                  <div style={{ position: 'relative' }}>
-                    <input type={showPassword ? 'text' : 'password'} value={form.password}
-                      onChange={e => setForm({ ...form, password: e.target.value })}
-                      required={!editingUser} placeholder={editingUser ? 'Laisser vide pour ne pas changer' : 'Mot de passe'}
-                      style={{ paddingRight: '44px' }} />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)}
-                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', display: 'flex', alignItems: 'center' }}>
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
+
+                {/* Champ mot de passe seulement en mode EDIT */}
+                {editingUser && (
+                  <div className="form-group" style={{ gridColumn: '1/-1' }}>
+                    <label>Nouveau mot de passe <span style={{ color: '#94A3B8', fontWeight: 400 }}>(laisser vide = inchangé)</span></label>
+                    <div style={{ position: 'relative' }}>
+                      <input type={showPassword ? 'text' : 'password'} value={editPassword}
+                        onChange={e => setEditPassword(e.target.value)}
+                        placeholder="Laisser vide pour ne pas changer"
+                        style={{ paddingRight: '44px' }} />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)}
+                        style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', display: 'flex', alignItems: 'center' }}>
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
+
                 <div className="form-group" style={{ gridColumn: '1/-1' }}>
                   <label>Rôle</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
