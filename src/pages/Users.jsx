@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
   Users as UsersIcon, UserPlus, Pencil, Trash2,
-  ShieldCheck, UserCheck, Eye, EyeOff,
-  KeyRound, Search, User as UserIcon,
+  ShieldCheck, UserCheck,
+  Search, User as UserIcon,
 } from 'lucide-react';
 import api from '../api/axios';
 
@@ -23,8 +23,6 @@ const Users = () => {
   const [editingUser,  setEditingUser]  = useState(null);
   const [form,         setForm]         = useState(EMPTY_FORM);
   const [loading,      setLoading]      = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [editPassword, setEditPassword] = useState('');
   const [search,       setSearch]       = useState('');
 
   useEffect(() => { fetchUsers(); }, []);
@@ -39,7 +37,6 @@ const Users = () => {
   const openAdd = () => {
     setEditingUser(null);
     setForm(EMPTY_FORM);
-    setEditPassword('');
     setShowModal(true);
   };
 
@@ -52,8 +49,6 @@ const Users = () => {
       email: user.email || '',
       role: user.role || 'employee',
     });
-    setEditPassword('');
-    setShowPassword(false);
     setShowModal(true);
   };
 
@@ -62,12 +57,10 @@ const Users = () => {
     setLoading(true);
     try {
       if (editingUser) {
-        // Modification : envoyer le mot de passe seulement si rempli
-        const data = { ...form };
-        if (editPassword) data.password = editPassword;
-        await api.put(`/auth/users/${editingUser.id}/`, data);
+        // Modification : uniquement les infos de base, JAMAIS le mot de passe
+        await api.put(`/auth/users/${editingUser.id}/`, { ...form });
       } else {
-        // Création : ne pas envoyer de mot de passe — généré côté serveur
+        // Création : mot de passe généré automatiquement côté serveur et envoyé par email
         await api.post('/auth/users/', { ...form });
       }
       fetchUsers();
@@ -81,15 +74,6 @@ const Users = () => {
     if (!window.confirm('Supprimer cet utilisateur ?')) return;
     try { await api.delete(`/auth/users/${id}/`); fetchUsers(); }
     catch (err) { console.error(err); }
-  };
-
-  const resetPassword = async (user) => {
-    const newPass = prompt(`Nouveau mot de passe pour ${user.prenom} ${user.nom} :`);
-    if (!newPass) return;
-    try {
-      await api.put(`/auth/users/${user.id}/`, { ...user, password: newPass });
-      alert('Mot de passe modifié avec succès.');
-    } catch (err) { alert('Erreur: ' + JSON.stringify(err.response?.data)); }
   };
 
   const filtered = users.filter(u => {
@@ -204,12 +188,6 @@ const Users = () => {
                           <Pencil size={13} /> Modifier
                         </button>
                       )}
-                      {!isClient && !isAdmin && (
-                        <button onClick={() => resetPassword(u)}
-                          style={{ padding: '6px 12px', background: '#FEF3DC', color: '#92580A', border: '1px solid #FCD34D', borderRadius: '7px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          <KeyRound size={13} /> MDP
-                        </button>
-                      )}
                       {!isAdmin && !isClient && (
                         <button onClick={() => handleDelete(u.id)}
                           style={{ padding: '6px 10px', background: '#FEE2E2', color: RED, border: '1px solid #FECACA', borderRadius: '7px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: '700' }}>
@@ -240,6 +218,13 @@ const Users = () => {
               </div>
             )}
 
+            {/* Info modification : pas de changement de MDP ici */}
+            {editingUser && (
+              <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', fontSize: '13px', color: '#15803D', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                ℹ️ Pour changer le mot de passe, l'employé doit utiliser "Mot de passe oublié" depuis l'application.
+              </div>
+            )}
+
             <form onSubmit={handleSubmit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div className="form-group">
@@ -259,23 +244,6 @@ const Users = () => {
                   <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
                     required={!editingUser} placeholder="ex: yassine@waieb.tn" />
                 </div>
-
-                {/* Champ mot de passe seulement en mode EDIT */}
-                {editingUser && (
-                  <div className="form-group" style={{ gridColumn: '1/-1' }}>
-                    <label>Nouveau mot de passe <span style={{ color: '#94A3B8', fontWeight: 400 }}>(laisser vide = inchangé)</span></label>
-                    <div style={{ position: 'relative' }}>
-                      <input type={showPassword ? 'text' : 'password'} value={editPassword}
-                        onChange={e => setEditPassword(e.target.value)}
-                        placeholder="Laisser vide pour ne pas changer"
-                        style={{ paddingRight: '44px' }} />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)}
-                        style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', display: 'flex', alignItems: 'center' }}>
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                  </div>
-                )}
 
                 <div className="form-group" style={{ gridColumn: '1/-1' }}>
                   <label>Rôle</label>
