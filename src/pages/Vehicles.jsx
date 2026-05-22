@@ -10,7 +10,7 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Pagination from '../components/Pagination';
 
-// ── Real car photos by brand
+// ── Real car photos by brand (fallback)
 const CAR_PHOTOS = {
   renault:    'https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=500&q=80',
   peugeot:    'https://images.unsplash.com/photo-1626668893632-6f3a4466d22f?w=500&q=80',
@@ -24,8 +24,28 @@ const CAR_PHOTOS = {
   skoda:      'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=500&q=80',
   default:    'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=500&q=80',
 };
+
+// ── Photos permanentes par immatriculation (imgbb)
+const IMMAT_PHOTOS = {
+  '240TN5082': 'https://i.ibb.co/FZmVWK6/vec1.jpg',
+  '259TN5651': 'https://i.ibb.co/F4SbDBMM/vec2.jpg',
+  '243TN1422': 'https://i.ibb.co/gbw2JtTH/vec3.jpg',
+  '236TN5648': 'https://i.ibb.co/0RJ31jBB/vec4.jpg',
+  '234TN2126': 'https://i.ibb.co/prkyKtjv/vec5.jpg',
+  '244TN7005': 'https://i.ibb.co/P81vS80/vec6.jpg',
+  '251TN1694': 'https://i.ibb.co/5WBKGTGL/vec7.jpg',
+  '252TN3310': 'https://i.ibb.co/9kNtVZGB/vec8.png',
+  '253TN4421': 'https://i.ibb.co/jvRzYcDB/vec9.png',
+  '254TN6632': 'https://i.ibb.co/hxvysSY4/vec10.png',
+  '255TN7743': 'https://i.ibb.co/dsfz2VnP/vec11.png',
+  '256TN8854': 'https://i.ibb.co/35ccmkFY/vec12.jpg',
+};
+
 const getCarPhoto = (v) =>
-  v?.photo ? `http://127.0.0.1:8000${v.photo}` : (CAR_PHOTOS[(v?.marque||'').toLowerCase()] || CAR_PHOTOS.default);
+  IMMAT_PHOTOS[v?.immatriculation] ||
+  (v?.photo ? `https://web-production-e6e97.up.railway.app${v.photo}` : null) ||
+  CAR_PHOTOS[(v?.marque||'').toLowerCase()] ||
+  CAR_PHOTOS.default;
 
 // ── Vehicle category classification by seats / model keywords
 const CATEGORIES = [
@@ -100,7 +120,6 @@ const Vehicles = () => {
     } catch (err) { console.error(err); }
   };
 
-  // ── Derived stats per vehicle
   const getVehicleStats = (id) => ({
     locations: reservations.filter(r => r.vehicle === id).length,
     sinistres: reservations.filter(r => r.vehicle === id && r.a_accident).length,
@@ -108,14 +127,12 @@ const Vehicles = () => {
     rayures:   reservations.filter(r => r.vehicle === id).reduce((s,r) => s + (r.eraflures_retour ? JSON.parse(r.eraflures_retour).length : 0), 0),
   });
 
-  // ── Alerts
   const hasAlert = (v) => {
     const today = new Date();
     const soon  = (dateStr) => { if (!dateStr) return false; const d = new Date(dateStr); return d < today || ((d - today) < 30*24*3600*1000); };
     return soon(v.date_revision) || soon(v.date_assurance) || soon(v.date_ct);
   };
 
-  // ── Filter + search
   const filtered = vehicles.filter(v => {
     const q   = search.toLowerCase();
     const matchSearch = !q || [v.marque,v.modele,v.immatriculation,v.couleur].some(f => (f||'').toLowerCase().includes(q));
@@ -127,18 +144,15 @@ const Vehicles = () => {
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated  = filtered.slice((currentPage-1)*ITEMS_PER_PAGE, currentPage*ITEMS_PER_PAGE);
 
-  // Reset to page 1 on filter change
   const handleSearch   = (v) => { setSearch(v);     setCurrentPage(1); };
   const handleStatFilt = (v) => { setStatFilter(v); setCurrentPage(1); };
   const handleCatFilt  = (v) => { setCatFilter(v);  setCurrentPage(1); };
 
-  // ── Stats bar (top)
   const totalVeh     = vehicles.length;
   const disponibles  = vehicles.filter(v => v.statut === 'disponible').length;
   const loues        = vehicles.filter(v => v.statut === 'loué').length;
   const alerts       = vehicles.filter(v => hasAlert(v)).length;
 
-  // ── Statut badge
   const statutStyle = (s) => ({
     disponible:  { bg: '#DCFCE7', color: '#16A34A', label: 'disponible' },
     'loué':      { bg: '#DBEAFE', color: '#1B3A6B', label: 'loué' },
@@ -153,7 +167,6 @@ const Vehicles = () => {
     sinistre:     { bg: '#FEE2E2', color: '#DC2626', label: 'Sinistre déclaré' },
   }[e] || { bg: '#F1F5F9', color: '#64748B', label: e });
 
-  // ── Season price suggestion
   const suggestPrices = () => {
     const base = parseFloat(form.prix_journalier);
     if (isNaN(base) || base <= 0) return;
@@ -164,7 +177,6 @@ const Vehicles = () => {
     }));
   };
 
-  // ── Submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -208,7 +220,6 @@ const Vehicles = () => {
 
   return (
     <div>
-      {/* ── Title */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h1 className="page-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Car size={22} color={NAVY} /> Gestion des Véhicules
@@ -220,7 +231,6 @@ const Vehicles = () => {
         )}
       </div>
 
-      {/* ── Top stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '20px' }}>
         {[
           { label: 'Total',       value: totalVeh,    color: NAVY,      bg: '#EFF4FB', icon: <Car size={18} /> },
@@ -240,7 +250,6 @@ const Vehicles = () => {
         ))}
       </div>
 
-      {/* ── Category filter tabs */}
       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
         {CATEGORIES.map(cat => {
           const count = cat.key === 'all' ? vehicles.length : vehicles.filter(v => classifyVehicle(v) === cat.key).length;
@@ -257,7 +266,6 @@ const Vehicles = () => {
         })}
       </div>
 
-      {/* ── Search + status filter */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
           <Search size={15} color="#94A3B8" style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
@@ -293,7 +301,6 @@ const Vehicles = () => {
         </div>
       </div>
 
-      {/* ── Results count */}
       <div style={{ fontSize: '12.5px', color: '#64748B', marginBottom: '14px' }}>
         <strong style={{ color: '#1A2535' }}>{filtered.length}</strong> véhicule{filtered.length !== 1 ? 's' : ''} trouvé{filtered.length !== 1 ? 's' : ''}
         {(search || statFilter !== 'all' || catFilter !== 'all') && (
@@ -304,7 +311,6 @@ const Vehicles = () => {
         )}
       </div>
 
-      {/* ── Vehicle cards grid */}
       {paginated.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
           <Car size={40} color="#DDE3ED" style={{ margin: '0 auto 12px' }} />
@@ -320,19 +326,16 @@ const Vehicles = () => {
             const alert   = hasAlert(v);
             const cat     = classifyVehicle(v);
             const catInfo = CATEGORIES.find(c => c.key === cat);
-            const mois    = new Date().getMonth() + 1;
 
             return (
               <div key={v.id} style={{ background: 'white', borderRadius: '14px', border: `1.5px solid ${alert ? '#FECACA' : '#DDE3ED'}`, overflow: 'hidden', transition: 'box-shadow 0.15s', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
                 onMouseEnter={e => e.currentTarget.style.boxShadow = '0 6px 20px rgba(27,58,107,0.12)'}
                 onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)'}>
 
-                {/* Photo */}
                 <div style={{ position: 'relative', height: '150px', overflow: 'hidden' }}>
                   <img src={getCarPhoto(v)} alt={`${v.marque} ${v.modele}`}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     onError={e => { e.target.src = CAR_PHOTOS.default; }} />
-                  {/* Overlays */}
                   <div style={{ position: 'absolute', top: '10px', left: '10px', display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                     <span style={{ background: st.bg, color: st.color, padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '700', backdropFilter: 'blur(4px)' }}>
                       {st.label}
@@ -346,7 +349,6 @@ const Vehicles = () => {
                       <AlertTriangle size={18} color="#DC2626" style={{ background: 'white', borderRadius: '50%', padding: '2px' }} />
                     </div>
                   )}
-                  {/* Season price ribbons */}
                   <div style={{ position: 'absolute', bottom: '8px', right: '8px', display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'flex-end' }}>
                     {v.prix_haute_saison && (
                       <span style={{ background: '#FEF3DC', color: '#92580A', padding: '2px 7px', borderRadius: '8px', fontSize: '10px', fontWeight: '700' }}>
@@ -361,9 +363,7 @@ const Vehicles = () => {
                   </div>
                 </div>
 
-                {/* Body */}
                 <div style={{ padding: '14px 16px' }}>
-                  {/* Name + price */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                     <div>
                       <div style={{ fontWeight: '800', fontSize: '15px', color: '#1A2535' }}>{v.marque} {v.modele}</div>
@@ -374,7 +374,6 @@ const Vehicles = () => {
                     </div>
                   </div>
 
-                  {/* Specs row */}
                   <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '10px' }}>
                     {[
                       { icon: <Fuel size={12} />,    val: v.type_carburant },
@@ -388,7 +387,6 @@ const Vehicles = () => {
                     ))}
                   </div>
 
-                  {/* État carrosserie */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC', borderRadius: '8px', padding: '7px 10px', marginBottom: '10px' }}>
                     <span style={{ fontSize: '11.5px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '5px' }}>
                       <Shield size={12} /> État carrosserie
@@ -398,7 +396,6 @@ const Vehicles = () => {
                     </span>
                   </div>
 
-                  {/* Stats bar */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '4px', marginBottom: '12px' }}>
                     {[
                       { icon: <Car size={13} />,           val: stats.locations, label: 'Locations', color: NAVY },
@@ -414,7 +411,6 @@ const Vehicles = () => {
                     ))}
                   </div>
 
-                  {/* Actions */}
                   <div style={{ display: 'flex', gap: '7px' }}>
                     <button onClick={() => openEdit(v)}
                       style={{ flex: 1, padding: '8px', background: NAVY, color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
@@ -438,7 +434,6 @@ const Vehicles = () => {
         </div>
       )}
 
-      {/* ── Pagination */}
       <div className="card" style={{ marginTop: '20px' }}>
         <Pagination
           currentPage={currentPage}
@@ -449,13 +444,11 @@ const Vehicles = () => {
         />
       </div>
 
-      {/* ────────── Modal Add/Edit ────────── */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px' }}>
             <h2>{editingVeh ? <><Pencil size={17} /> Modifier le véhicule</> : <><Plus size={17} /> Ajouter un véhicule</>}</h2>
 
-            {/* Tabs */}
             <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', background: '#F8FAFC', borderRadius: '10px', padding: '4px' }}>
               {[
                 { key:'infos',    label:'Infos' },
@@ -552,7 +545,7 @@ const Vehicles = () => {
                 <div>
                   {editingVeh?.photo && (
                     <div style={{ marginBottom: '14px' }}>
-                      <img src={`http://127.0.0.1:8000${editingVeh.photo}`} alt="actuelle" style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '10px' }} />
+                      <img src={getCarPhoto(editingVeh)} alt="actuelle" style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '10px' }} />
                       <p style={{ fontSize: '12px', color: '#64748B', marginTop: '6px' }}>Photo actuelle</p>
                     </div>
                   )}
