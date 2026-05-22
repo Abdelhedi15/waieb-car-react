@@ -30,9 +30,8 @@ const CAR_PHOTOS = {
   skoda: 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=300&q=70',
   default: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=300&q=70',
 };
-const getCarPhoto = (v) =>
-  v?.photo ? `http://127.0.0.1:8000${v.photo}` : (CAR_PHOTOS[(v?.marque||'').toLowerCase()] || CAR_PHOTOS.default);
-
+const IMMAT_PHOTOS = {'240TN5082':'https://i.ibb.co/FZmVWK6/vec1.jpg','259TN5651':'https://i.ibb.co/F4SbDBMM/vec2.jpg','243TN1422':'https://i.ibb.co/gbw2JtTH/vec3.jpg','236TN5648':'https://i.ibb.co/0RJ31jBB/vec4.jpg','234TN2126':'https://i.ibb.co/prkyKtjv/vec5.jpg','244TN7005':'https://i.ibb.co/P81vS80/vec6.jpg','251TN1694':'https://i.ibb.co/5WBKGTGL/vec7.jpg','252TN3310':'https://i.ibb.co/9kNtVZGB/vec8.png','253TN4421':'https://i.ibb.co/jvRzYcDB/vec9.png','254TN6632':'https://i.ibb.co/hxvysSY4/vec10.png','255TN7743':'https://i.ibb.co/dsfz2VnP/vec11.png','256TN8854':'https://i.ibb.co/35ccmkFY/vec12.jpg'};
+const getCarPhoto = (v) => IMMAT_PHOTOS[v?.immatriculation] || (v?.photo ? `https://web-production-e6e97.up.railway.app${v.photo}` : null) || CAR_PHOTOS[(v?.marque||'').toLowerCase()] || CAR_PHOTOS.default;
 const statutConfig = {
   en_attente: { bg: '#FEF9C3', color: '#92580A', label: 'En attente',  icon: <Clock size={12} /> },
   confirmée:  { bg: '#DCFCE7', color: '#166534', label: 'Confirmée',   icon: <CheckCircle size={12} /> },
