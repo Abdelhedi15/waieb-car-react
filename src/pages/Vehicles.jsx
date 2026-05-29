@@ -10,7 +10,7 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Pagination from '../components/Pagination';
 
-// â”€â”€ Real car photos by brand (fallback)
+// ── Real car photos by brand (fallback)
 const CAR_PHOTOS = {
   renault:    'https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=500&q=80',
   peugeot:    'https://images.unsplash.com/photo-1626668893632-6f3a4466d22f?w=500&q=80',
@@ -28,7 +28,7 @@ const CAR_PHOTOS = {
   default:    'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=500&q=80',
 };
 
-// â”€â”€ Photos permanentes par immatriculation
+// ── Photos permanentes par immatriculation
 const IMMAT_PHOTOS = {
   '240TN5082': 'https://i.ibb.co/FZmVWK6/vec1.jpg',
   '259TN5651': 'https://i.ibb.co/F4SbDBMM/vec2.jpg',
@@ -42,7 +42,7 @@ const IMMAT_PHOTOS = {
   '254TN6632': 'https://i.ibb.co/hxvysSY4/vec10.png',
   '255TN7743': 'https://i.ibb.co/dsfz2VnP/vec11.png',
   '256TN8854': 'https://i.ibb.co/35ccmkFY/vec12.jpg',
-  // âœ… Nouveaux vÃ©hicules â€” Unsplash (imgbb hotlink bloquÃ©)
+  // ✅ Nouveaux véhicules — Unsplash (imgbb hotlink bloqué)
   '257TN1301': 'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=500&q=80',
   '258TN1402': 'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=500&q=80',
   '259TN1503': 'https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=500&q=80',
@@ -65,12 +65,12 @@ const getCarPhoto = (v) => {
   return CAR_PHOTOS[(v?.marque||'').toLowerCase()] || CAR_PHOTOS.default;
 };
 
-// â”€â”€ Vehicle category classification by seats / model keywords
+// ── Vehicle category classification by seats / model keywords
 const CATEGORIES = [
   { key: 'all',     label: 'Tous',          icon: <Car size={14} /> },
-  { key: 'small',   label: 'Petite',        icon: <Car size={14} />, desc: '2â€“4 places / citadine' },
+  { key: 'small',   label: 'Petite',        icon: <Car size={14} />, desc: '2–4 places / citadine' },
   { key: 'medium',  label: 'Moyenne',       icon: <Car size={14} />, desc: '5 places / berline' },
-  { key: 'large',   label: 'Grande',        icon: <Car size={14} />, desc: '6â€“7 places / familiale' },
+  { key: 'large',   label: 'Grande',        icon: <Car size={14} />, desc: '6–7 places / familiale' },
   { key: 'suv',     label: 'SUV / 4x4',     icon: <Car size={14} /> },
   { key: 'van',     label: 'Van / Utilitaire', icon: <Car size={14} /> },
   { key: 'luxury',  label: 'Luxe / Premium', icon: <Car size={14} /> },
@@ -168,21 +168,21 @@ const Vehicles = () => {
 
   const totalVeh     = vehicles.length;
   const disponibles  = vehicles.filter(v => v.statut === 'disponible').length;
-  const loues        = vehicles.filter(v => v.statut === 'louÃ©').length;
+  const loues        = vehicles.filter(v => v.statut === 'loué').length;
   const alerts       = vehicles.filter(v => hasAlert(v)).length;
 
   const statutStyle = (s) => ({
     disponible:  { bg: '#DCFCE7', color: '#16A34A', label: 'disponible' },
-    'louÃ©':      { bg: '#DBEAFE', color: '#1B3A6B', label: 'louÃ©' },
+    'loué':      { bg: '#DBEAFE', color: '#1B3A6B', label: 'loué' },
     maintenance: { bg: '#FEF9C3', color: '#D97706', label: 'maintenance' },
     'hors service': { bg: '#FEE2E2', color: '#DC2626', label: 'hors service' },
   }[s] || { bg: '#F1F5F9', color: '#64748B', label: s });
 
   const etatStyle = (e) => ({
-    excellent:    { bg: '#DCFCE7', color: '#16A34A', label: 'Excellent Ã©tat' },
-    defauts:      { bg: '#FEF9C3', color: '#D97706', label: 'DÃ©fauts mineurs' },
+    excellent:    { bg: '#DCFCE7', color: '#16A34A', label: 'Excellent état' },
+    defauts:      { bg: '#FEF9C3', color: '#D97706', label: 'Défauts mineurs' },
     dommages:     { bg: '#FEE2E2', color: '#DC2626', label: 'Dommages visibles' },
-    sinistre:     { bg: '#FEE2E2', color: '#DC2626', label: 'Sinistre dÃ©clarÃ©' },
+    sinistre:     { bg: '#FEE2E2', color: '#DC2626', label: 'Sinistre déclaré' },
   }[e] || { bg: '#F1F5F9', color: '#64748B', label: e });
 
   const suggestPrices = () => {
@@ -228,7 +228,7 @@ const Vehicles = () => {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Supprimer ce vÃ©hicule ?')) return;
+    if (!window.confirm('Supprimer ce véhicule ?')) return;
     try { await api.delete(`/vehicles/${id}/`); fetchAll(); }
     catch (err) { alert('Erreur: ' + JSON.stringify(err.response?.data)); }
   };
@@ -240,11 +240,11 @@ const Vehicles = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h1 className="page-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Car size={22} color={NAVY} /> Gestion des VÃ©hicules
+          <Car size={22} color={NAVY} /> Gestion des Véhicules
         </h1>
         {isAdmin && (
           <button className="btn btn-primary" onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-            <Plus size={16} /> Ajouter un vÃ©hicule
+            <Plus size={16} /> Ajouter un véhicule
           </button>
         )}
       </div>
@@ -253,7 +253,7 @@ const Vehicles = () => {
         {[
           { label: 'Total',       value: totalVeh,    color: NAVY,      bg: '#EFF4FB', icon: <Car size={18} /> },
           { label: 'Disponibles', value: disponibles, color: '#16A34A', bg: '#DCFCE7', icon: <CheckCircle size={18} /> },
-          { label: 'LouÃ©s',       value: loues,       color: '#7C3AED', bg: '#F3EEFF', icon: <Car size={18} /> },
+          { label: 'Loués',       value: loues,       color: '#7C3AED', bg: '#F3EEFF', icon: <Car size={18} /> },
           { label: 'Alertes',     value: alerts,      color: '#DC2626', bg: '#FEE2E2', icon: <AlertTriangle size={18} /> },
         ].map(s => (
           <div key={s.label} className="card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 18px' }}>
@@ -288,16 +288,16 @@ const Vehicles = () => {
         <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
           <Search size={15} color="#94A3B8" style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
           <input value={search} onChange={e => handleSearch(e.target.value)}
-            placeholder="Rechercher par marque, modÃ¨le, immatriculation..."
+            placeholder="Rechercher par marque, modèle, immatriculation..."
             style={{ paddingLeft: '34px', width: '100%' }} />
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {[
             { value: 'all',          label: 'Tous',         color: NAVY,      bg: '#EFF4FB' },
-            { value: 'disponible',   label: 'âœ… Disponible', color: '#16A34A', bg: '#DCFCE7' },
-            { value: 'louÃ©',         label: 'ðŸš— LouÃ©',       color: '#1B3A6B', bg: '#DBEAFE' },
-            { value: 'maintenance',  label: 'ðŸ”§ Maintenance',color: '#D97706', bg: '#FEF9C3' },
-            { value: 'hors service', label: 'âŒ Hors service',color: '#DC2626', bg: '#FEE2E2' },
+            { value: 'disponible',   label: '✅ Disponible', color: '#16A34A', bg: '#DCFCE7' },
+            { value: 'loué',         label: '🚗 Loué',       color: '#1B3A6B', bg: '#DBEAFE' },
+            { value: 'maintenance',  label: '🔧 Maintenance',color: '#D97706', bg: '#FEF9C3' },
+            { value: 'hors service', label: '❌ Hors service',color: '#DC2626', bg: '#FEE2E2' },
           ].map(s => (
             <button key={s.value} onClick={() => handleStatFilt(s.value)}
               style={{ padding: '7px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '12px', background: statFilter === s.value ? s.color : s.bg, color: statFilter === s.value ? 'white' : s.color, transition: 'all 0.15s', boxShadow: statFilter === s.value ? `0 2px 8px ${s.color}40` : 'none' }}>
@@ -313,7 +313,7 @@ const Vehicles = () => {
       </div>
 
       <div style={{ fontSize: '12.5px', color: '#64748B', marginBottom: '14px' }}>
-        <strong style={{ color: '#1A2535' }}>{filtered.length}</strong> vÃ©hicule{filtered.length !== 1 ? 's' : ''} trouvÃ©{filtered.length !== 1 ? 's' : ''}
+        <strong style={{ color: '#1A2535' }}>{filtered.length}</strong> véhicule{filtered.length !== 1 ? 's' : ''} trouvé{filtered.length !== 1 ? 's' : ''}
         {(search || statFilter !== 'all' || catFilter !== 'all') && (
           <button onClick={() => { setSearch(''); setStatFilter('all'); setCatFilter('all'); setCurrentPage(1); }}
             style={{ marginLeft: '10px', background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', fontSize: '12px', fontWeight: '600', textDecoration: 'underline' }}>
@@ -325,8 +325,8 @@ const Vehicles = () => {
       {paginated.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
           <Car size={40} color="#DDE3ED" style={{ margin: '0 auto 12px' }} />
-          <p style={{ fontWeight: '600' }}>Aucun vÃ©hicule trouvÃ©</p>
-          <p style={{ fontSize: '13px', marginTop: '4px' }}>Modifiez vos filtres ou ajoutez un nouveau vÃ©hicule</p>
+          <p style={{ fontWeight: '600' }}>Aucun véhicule trouvé</p>
+          <p style={{ fontSize: '13px', marginTop: '4px' }}>Modifiez vos filtres ou ajoutez un nouveau véhicule</p>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: '18px' }}>
@@ -363,12 +363,12 @@ const Vehicles = () => {
                   <div style={{ position: 'absolute', bottom: '8px', right: '8px', display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'flex-end' }}>
                     {v.prix_haute_saison && (
                       <span style={{ background: '#FEF3DC', color: '#92580A', padding: '2px 7px', borderRadius: '8px', fontSize: '10px', fontWeight: '700' }}>
-                        Ã‰tÃ©: {parseFloat(v.prix_haute_saison).toFixed(0)} DT/j
+                        Été: {parseFloat(v.prix_haute_saison).toFixed(0)} DT/j
                       </span>
                     )}
                     {v.prix_tres_haute_saison && (
                       <span style={{ background: '#FEE2E2', color: '#DC2626', padding: '2px 7px', borderRadius: '8px', fontSize: '10px', fontWeight: '700' }}>
-                        Juil-AoÃ»t: {parseFloat(v.prix_tres_haute_saison).toFixed(0)} DT/j
+                        Juil-Août: {parseFloat(v.prix_tres_haute_saison).toFixed(0)} DT/j
                       </span>
                     )}
                   </div>
@@ -378,7 +378,7 @@ const Vehicles = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                     <div>
                       <div style={{ fontWeight: '800', fontSize: '15px', color: '#1A2535' }}>{v.marque} {v.modele}</div>
-                      <div style={{ color: NAVY, fontWeight: '700', fontSize: '12px', marginTop: '1px' }}>{v.immatriculation} Â· {v.annee}</div>
+                      <div style={{ color: NAVY, fontWeight: '700', fontSize: '12px', marginTop: '1px' }}>{v.immatriculation} · {v.annee}</div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: '16px', fontWeight: '800', color: '#16A34A' }}>{parseFloat(v.prix_journalier).toFixed(0)} DT/j</div>
@@ -400,7 +400,7 @@ const Vehicles = () => {
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC', borderRadius: '8px', padding: '7px 10px', marginBottom: '10px' }}>
                     <span style={{ fontSize: '11.5px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <Shield size={12} /> Ã‰tat carrosserie
+                      <Shield size={12} /> État carrosserie
                     </span>
                     <span style={{ background: et.bg, color: et.color, padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '700' }}>
                       {et.label}
@@ -429,7 +429,7 @@ const Vehicles = () => {
                     </button>
                     <button onClick={() => navigate(`/vehicles/${v.id}/state`)}
                       style={{ flex: 1, padding: '8px', background: '#EFF4FB', color: NAVY, border: '1.5px solid #DDE3ED', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
-                      <FileText size={13} /> Rapport Ã©tat
+                      <FileText size={13} /> Rapport état
                     </button>
                     {isAdmin && (
                       <button onClick={() => handleDelete(v.id)}
@@ -452,7 +452,7 @@ const Vehicles = () => {
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px' }}>
-            <h2>{editingVeh ? <><Pencil size={17} /> Modifier le vÃ©hicule</> : <><Plus size={17} /> Ajouter un vÃ©hicule</>}</h2>
+            <h2>{editingVeh ? <><Pencil size={17} /> Modifier le véhicule</> : <><Plus size={17} /> Ajouter un véhicule</>}</h2>
             <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', background: '#F8FAFC', borderRadius: '10px', padding: '4px' }}>
               {[
                 { key:'infos',    label:'Infos' },
@@ -471,24 +471,24 @@ const Vehicles = () => {
               {activeTab === 'infos' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                   <div className="form-group"><label>Marque *</label><input value={form.marque} onChange={e=>setForm({...form,marque:e.target.value})} required /></div>
-                  <div className="form-group"><label>ModÃ¨le *</label><input value={form.modele} onChange={e=>setForm({...form,modele:e.target.value})} required /></div>
+                  <div className="form-group"><label>Modèle *</label><input value={form.modele} onChange={e=>setForm({...form,modele:e.target.value})} required /></div>
                   <div className="form-group"><label>Immatriculation *</label><input value={form.immatriculation} onChange={e=>setForm({...form,immatriculation:e.target.value})} required /></div>
-                  <div className="form-group"><label>AnnÃ©e</label><input type="number" value={form.annee} onChange={e=>setForm({...form,annee:e.target.value})} /></div>
+                  <div className="form-group"><label>Année</label><input type="number" value={form.annee} onChange={e=>setForm({...form,annee:e.target.value})} /></div>
                   <div className="form-group"><label>Couleur</label><input value={form.couleur} onChange={e=>setForm({...form,couleur:e.target.value})} /></div>
                   <div className="form-group"><label>Statut</label>
                     <select value={form.statut} onChange={e=>setForm({...form,statut:e.target.value})}>
                       <option value="disponible">Disponible</option>
-                      <option value="louÃ©">LouÃ©</option>
+                      <option value="loué">Loué</option>
                       <option value="maintenance">Maintenance</option>
                       <option value="hors service">Hors service</option>
                     </select>
                   </div>
-                  <div className="form-group" style={{gridColumn:'1/-1'}}><label>Ã‰tat carrosserie</label>
+                  <div className="form-group" style={{gridColumn:'1/-1'}}><label>État carrosserie</label>
                     <select value={form.etat_carrosserie} onChange={e=>setForm({...form,etat_carrosserie:e.target.value})}>
-                      <option value="excellent">Excellent Ã©tat</option>
-                      <option value="defauts">DÃ©fauts mineurs</option>
+                      <option value="excellent">Excellent état</option>
+                      <option value="defauts">Défauts mineurs</option>
                       <option value="dommages">Dommages visibles</option>
-                      <option value="sinistre">Sinistre dÃ©clarÃ©</option>
+                      <option value="sinistre">Sinistre déclaré</option>
                     </select>
                   </div>
                 </div>
@@ -500,12 +500,12 @@ const Vehicles = () => {
                       <option value="essence">Essence</option>
                       <option value="diesel">Diesel</option>
                       <option value="hybride">Hybride</option>
-                      <option value="Ã©lectrique">Ã‰lectrique</option>
+                      <option value="électrique">Électrique</option>
                     </select>
                   </div>
                   <div className="form-group"><label>Nombre de places</label><input type="number" value={form.nombre_places} onChange={e=>setForm({...form,nombre_places:e.target.value})} min="2" max="9" /></div>
-                  <div className="form-group"><label>KilomÃ©trage</label><input type="number" value={form.kilometrage} onChange={e=>setForm({...form,kilometrage:e.target.value})} /></div>
-                  <div className="form-group"><label>Date rÃ©vision</label><input type="date" value={form.date_revision||''} onChange={e=>setForm({...form,date_revision:e.target.value})} /></div>
+                  <div className="form-group"><label>Kilométrage</label><input type="number" value={form.kilometrage} onChange={e=>setForm({...form,kilometrage:e.target.value})} /></div>
+                  <div className="form-group"><label>Date révision</label><input type="date" value={form.date_revision||''} onChange={e=>setForm({...form,date_revision:e.target.value})} /></div>
                   <div className="form-group"><label>Date CT</label><input type="date" value={form.date_ct||''} onChange={e=>setForm({...form,date_ct:e.target.value})} /></div>
                 </div>
               )}
@@ -518,7 +518,7 @@ const Vehicles = () => {
                     </div>
                   </div>
                   <button type="button" onClick={suggestPrices} style={{ marginBottom: '14px', padding: '8px 14px', background: '#EFF4FB', color: NAVY, border: '1.5px solid #DDE3ED', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12.5px' }}>
-                    SuggÃ©rer prix saisonniers automatiquement
+                    Suggérer prix saisonniers automatiquement
                   </button>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                     <div className="form-group" style={{ background: '#FEF9C3', padding: '12px', borderRadius: '10px', border: '1px solid #FEF08A' }}>
@@ -526,7 +526,7 @@ const Vehicles = () => {
                       <input type="number" value={form.prix_haute_saison} onChange={e=>setForm({...form,prix_haute_saison:e.target.value})} step="0.01" style={{ marginTop: '6px' }} />
                     </div>
                     <div className="form-group" style={{ background: '#FEE2E2', padding: '12px', borderRadius: '10px', border: '1px solid #FECACA' }}>
-                      <label style={{ color: '#991B1B' }}>Prix TrÃ¨s haute saison +50% (Juil/AoÃ»t)</label>
+                      <label style={{ color: '#991B1B' }}>Prix Très haute saison +50% (Juil/Août)</label>
                       <input type="number" value={form.prix_tres_haute_saison} onChange={e=>setForm({...form,prix_tres_haute_saison:e.target.value})} step="0.01" style={{ marginTop: '6px' }} />
                     </div>
                   </div>
@@ -535,7 +535,7 @@ const Vehicles = () => {
               {activeTab === 'assurance' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                   <div className="form-group"><label>Date assurance</label><input type="date" value={form.date_assurance||''} onChange={e=>setForm({...form,date_assurance:e.target.value})} /></div>
-                  <div className="form-group"><label>NumÃ©ro police</label><input value={form.numero_police||''} onChange={e=>setForm({...form,numero_police:e.target.value})} /></div>
+                  <div className="form-group"><label>Numéro police</label><input value={form.numero_police||''} onChange={e=>setForm({...form,numero_police:e.target.value})} /></div>
                   <div className="form-group" style={{gridColumn:'1/-1'}}><label>Notes</label><textarea rows={3} value={form.notes||''} onChange={e=>setForm({...form,notes:e.target.value})} style={{resize:'vertical'}} /></div>
                 </div>
               )}
@@ -552,7 +552,7 @@ const Vehicles = () => {
                     <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files[0])} />
                   </div>
                   {photoFile && (
-                    <img src={URL.createObjectURL(photoFile)} alt="aperÃ§u" style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '10px', marginTop: '10px' }} />
+                    <img src={URL.createObjectURL(photoFile)} alt="aperçu" style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '10px', marginTop: '10px' }} />
                   )}
                 </div>
               )}
