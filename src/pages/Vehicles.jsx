@@ -39,6 +39,16 @@ const IMMAT_PHOTOS = {
   '254TN6632': 'https://i.ibb.co/hxvysSY4/vec10.png',
   '255TN7743': 'https://i.ibb.co/dsfz2VnP/vec11.png',
   '256TN8854': 'https://i.ibb.co/35ccmkFY/vec12.jpg',
+   '257TN1301': 'https://i.ibb.co/zTqsrTvT/vec13.jpg',
+  '258TN1402': 'https://i.ibb.co/hRDFJYZy/vec14.jpg',
+  '259TN1503': 'https://i.ibb.co/n8DyCGCr/vec15.jpg',
+  '260TN1604': 'https://i.ibb.co/wZfGy948/vec16.jpg',
+  '261TN1705': 'https://i.ibb.co/ZzNTcc8G/vec17.jpg',
+  '262TN1806': 'https://i.ibb.co/v6Bqz1Vm/vec18.jpg',
+  '263TN1907': 'https://i.ibb.co/KzVK2JNw/vec19.jpg',
+  '264TN2008': 'https://i.ibb.co/JFkFWp6g/vec20.jpg',
+  '265TN2109': 'https://i.ibb.co/1fLYRnVC/vec21.jpg',
+  '266TN2210': 'https://i.ibb.co/d0SK6j6H/vec22.jpg',
 };
 
 const getCarPhoto = (v) =>
