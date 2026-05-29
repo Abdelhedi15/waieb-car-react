@@ -31,7 +31,15 @@ const CAR_PHOTOS = {
   default: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=300&q=70',
 };
 const IMMAT_PHOTOS = {'240TN5082':'https://i.ibb.co/FZmVWK6/vec1.jpg','259TN5651':'https://i.ibb.co/F4SbDBMM/vec2.jpg','243TN1422':'https://i.ibb.co/gbw2JtTH/vec3.jpg','236TN5648':'https://i.ibb.co/0RJ31jBB/vec4.jpg','234TN2126':'https://i.ibb.co/prkyKtjv/vec5.jpg','244TN7005':'https://i.ibb.co/P81vS80/vec6.jpg','251TN1694':'https://i.ibb.co/5WBKGTGL/vec7.jpg','252TN3310':'https://i.ibb.co/9kNtVZGB/vec8.png','253TN4421':'https://i.ibb.co/jvRzYcDB/vec9.png','254TN6632':'https://i.ibb.co/hxvysSY4/vec10.png','255TN7743':'https://i.ibb.co/dsfz2VnP/vec11.png','256TN8854':'https://i.ibb.co/35ccmkFY/vec12.jpg','257TN1301':'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=500&q=80','258TN1402':'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=500&q=80','259TN1503':'https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=500&q=80','260TN1604':'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=500&q=80','261TN1705':'https://images.unsplash.com/photo-1606016159991-dfe4f2746ad5?w=500&q=80','262TN1806':'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=500&q=80','263TN1907':'https://images.unsplash.com/photo-1617788138017-80ad40651399?w=500&q=80','264TN2008':'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=500&q=80','265TN2109':'https://images.unsplash.com/photo-1626668893632-6f3a4466d22f?w=500&q=80','266TN2210':'https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=500&q=80'};
-const getCarPhoto = (v) => IMMAT_PHOTOS[v?.immatriculation] || (v?.photo ? `https://web-production-e6e97.up.railway.app${v.photo}` : null) || CAR_PHOTOS[(v?.marque||'').toLowerCase()] || CAR_PHOTOS.default;
+const getCarPhoto = (v) => {
+  if (IMMAT_PHOTOS[v?.immatriculation]) return IMMAT_PHOTOS[v?.immatriculation];
+  if (v?.photo) {
+    const p = String(v.photo);
+    if (p.startsWith('http')) return p;
+    return `https://web-production-e6e97.up.railway.app${p}`;
+  }
+  return CAR_PHOTOS[(v?.marque||'').toLowerCase()] || CAR_PHOTOS.default;
+};
 const statutConfig = {
   en_attente: { bg: '#FEF9C3', color: '#92580A', label: 'En attente',  icon: <Clock size={12} /> },
   confirmée:  { bg: '#DCFCE7', color: '#166534', label: 'Confirmée',   icon: <CheckCircle size={12} /> },
@@ -794,5 +802,6 @@ const ReservationsList = () => {
 };
 
 export default ReservationsList;
+
 
 
