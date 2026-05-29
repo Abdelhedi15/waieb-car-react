@@ -22,10 +22,13 @@ const CAR_PHOTOS = {
   seat:       'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=500&q=80',
   ford:       'https://images.unsplash.com/photo-1544636331-e26879cd4d9b?w=500&q=80',
   skoda:      'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=500&q=80',
+  bmw:        'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=500&q=80',
+  audi:       'https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=500&q=80',
+  mercedes:   'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=500&q=80',
   default:    'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=500&q=80',
 };
 
-// ── Photos permanentes par immatriculation (imgbb)
+// ── Photos permanentes par immatriculation
 const IMMAT_PHOTOS = {
   '240TN5082': 'https://i.ibb.co/FZmVWK6/vec1.jpg',
   '259TN5651': 'https://i.ibb.co/F4SbDBMM/vec2.jpg',
@@ -39,16 +42,17 @@ const IMMAT_PHOTOS = {
   '254TN6632': 'https://i.ibb.co/hxvysSY4/vec10.png',
   '255TN7743': 'https://i.ibb.co/dsfz2VnP/vec11.png',
   '256TN8854': 'https://i.ibb.co/35ccmkFY/vec12.jpg',
-   '257TN1301': 'https://i.ibb.co/zTqsrTvT/vec13.jpg',
-  '258TN1402': 'https://i.ibb.co/hRDFJYZy/vec14.jpg',
-  '259TN1503': 'https://i.ibb.co/n8DyCGCr/vec15.jpg',
-  '260TN1604': 'https://i.ibb.co/wZfGy948/vec16.jpg',
-  '261TN1705': 'https://i.ibb.co/ZzNTcc8G/vec17.jpg',
-  '262TN1806': 'https://i.ibb.co/v6Bqz1Vm/vec18.jpg',
-  '263TN1907': 'https://i.ibb.co/KzVK2JNw/vec19.jpg',
-  '264TN2008': 'https://i.ibb.co/JFkFWp6g/vec20.jpg',
-  '265TN2109': 'https://i.ibb.co/1fLYRnVC/vec21.jpg',
-  '266TN2210': 'https://i.ibb.co/d0SK6j6H/vec22.jpg',
+  // ✅ Nouveaux véhicules — Unsplash (imgbb hotlink bloqué)
+  '257TN1301': 'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=500&q=80',
+  '258TN1402': 'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=500&q=80',
+  '259TN1503': 'https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=500&q=80',
+  '260TN1604': 'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=500&q=80',
+  '261TN1705': 'https://images.unsplash.com/photo-1606016159991-dfe4f2746ad5?w=500&q=80',
+  '262TN1806': 'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=500&q=80',
+  '263TN1907': 'https://images.unsplash.com/photo-1617788138017-80ad40651399?w=500&q=80',
+  '264TN2008': 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=500&q=80',
+  '265TN2109': 'https://images.unsplash.com/photo-1626668893632-6f3a4466d22f?w=500&q=80',
+  '266TN2210': 'https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=500&q=80',
 };
 
 const getCarPhoto = (v) =>
@@ -292,14 +296,7 @@ const Vehicles = () => {
             { value: 'hors service', label: '❌ Hors service',color: '#DC2626', bg: '#FEE2E2' },
           ].map(s => (
             <button key={s.value} onClick={() => handleStatFilt(s.value)}
-              style={{
-                padding: '7px 14px', borderRadius: '20px', border: 'none',
-                cursor: 'pointer', fontWeight: '700', fontSize: '12px',
-                background: statFilter === s.value ? s.color : s.bg,
-                color: statFilter === s.value ? 'white' : s.color,
-                transition: 'all 0.15s',
-                boxShadow: statFilter === s.value ? `0 2px 8px ${s.color}40` : 'none',
-              }}>
+              style={{ padding: '7px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '12px', background: statFilter === s.value ? s.color : s.bg, color: statFilter === s.value ? 'white' : s.color, transition: 'all 0.15s', boxShadow: statFilter === s.value ? `0 2px 8px ${s.color}40` : 'none' }}>
               {s.label}
               {s.value !== 'all' && (
                 <span style={{ marginLeft: '6px', fontWeight: '800' }}>
@@ -445,20 +442,13 @@ const Vehicles = () => {
       )}
 
       <div className="card" style={{ marginTop: '20px' }}>
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={setCurrentPage}
-          totalItems={filtered.length}
-          itemsPerPage={ITEMS_PER_PAGE}
-        />
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={filtered.length} itemsPerPage={ITEMS_PER_PAGE} />
       </div>
 
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px' }}>
             <h2>{editingVeh ? <><Pencil size={17} /> Modifier le véhicule</> : <><Plus size={17} /> Ajouter un véhicule</>}</h2>
-
             <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', background: '#F8FAFC', borderRadius: '10px', padding: '4px' }}>
               {[
                 { key:'infos',    label:'Infos' },
@@ -473,7 +463,6 @@ const Vehicles = () => {
                 </button>
               ))}
             </div>
-
             <form onSubmit={handleSubmit}>
               {activeTab === 'infos' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
@@ -500,7 +489,6 @@ const Vehicles = () => {
                   </div>
                 </div>
               )}
-
               {activeTab === 'tech' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                   <div className="form-group"><label>Type carburant</label>
@@ -517,7 +505,6 @@ const Vehicles = () => {
                   <div className="form-group"><label>Date CT</label><input type="date" value={form.date_ct||''} onChange={e=>setForm({...form,date_ct:e.target.value})} /></div>
                 </div>
               )}
-
               {activeTab === 'tarifs' && (
                 <div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
@@ -526,8 +513,7 @@ const Vehicles = () => {
                       <input type="number" value={form.prix_journalier} onChange={e=>setForm({...form,prix_journalier:e.target.value})} required step="0.01" />
                     </div>
                   </div>
-                  <button type="button" onClick={suggestPrices}
-                    style={{ marginBottom: '14px', padding: '8px 14px', background: '#EFF4FB', color: NAVY, border: '1.5px solid #DDE3ED', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12.5px' }}>
+                  <button type="button" onClick={suggestPrices} style={{ marginBottom: '14px', padding: '8px 14px', background: '#EFF4FB', color: NAVY, border: '1.5px solid #DDE3ED', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12.5px' }}>
                     Suggérer prix saisonniers automatiquement
                   </button>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
@@ -542,7 +528,6 @@ const Vehicles = () => {
                   </div>
                 </div>
               )}
-
               {activeTab === 'assurance' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                   <div className="form-group"><label>Date assurance</label><input type="date" value={form.date_assurance||''} onChange={e=>setForm({...form,date_assurance:e.target.value})} /></div>
@@ -550,7 +535,6 @@ const Vehicles = () => {
                   <div className="form-group" style={{gridColumn:'1/-1'}}><label>Notes</label><textarea rows={3} value={form.notes||''} onChange={e=>setForm({...form,notes:e.target.value})} style={{resize:'vertical'}} /></div>
                 </div>
               )}
-
               {activeTab === 'photo' && (
                 <div>
                   {editingVeh?.photo && (
@@ -568,7 +552,6 @@ const Vehicles = () => {
                   )}
                 </div>
               )}
-
               <div className="modal-actions">
                 <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)}>Annuler</button>
                 <button type="submit" className="btn btn-primary" disabled={loading}>
