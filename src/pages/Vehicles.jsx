@@ -43,16 +43,16 @@ const IMMAT_PHOTOS = {
   '255TN7743': 'https://i.ibb.co/dsfz2VnP/vec11.png',
   '256TN8854': 'https://i.ibb.co/35ccmkFY/vec12.jpg',
   //  Nouveaux véhicules  Unsplash (imgbb hotlink bloqué)
-  '257TN1301': 'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=500&q=80',
-  '258TN1402': 'https://images.unsplash.com/photo-1555215695-3004980ad54e?w=500&q=80',
-  '259TN1503': 'https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=500&q=80',
-  '260TN1604': 'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=500&q=80',
-  '261TN1705': 'https://images.unsplash.com/photo-1606016159991-dfe4f2746ad5?w=500&q=80',
-  '262TN1806': 'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=500&q=80',
-  '263TN1907': 'https://images.unsplash.com/photo-1617788138017-80ad40651399?w=500&q=80',
-  '264TN2008': 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=500&q=80',
-  '265TN2109': 'https://images.unsplash.com/photo-1626668893632-6f3a4466d22f?w=500&q=80',
-  '266TN2210': 'https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=500&q=80',
+  '257TN1301': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155233/vec13_jwhixy.jpg',
+  '258TN1402': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155237/vec14_emprhi.jpg',
+  '259TN1503': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155235/vec15_y7lazd.jpg',
+  '260TN1604': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155234/vec16_pkydhf.jpg',
+  '261TN1705': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155234/vec17_z2iw32.jpg',
+  '262TN1806': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155234/vec18_byuiqk.jpg',
+  '263TN1907': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155235/vec19_g9yvnw.jpg',
+  '264TN2008': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155235/vec20_kvsoqj.jpg',
+  '265TN2109': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155235/vec21_bjkcyt.jpg',
+  '266TN2210': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155236/vec22_gkpzax.jpg',
 };
 
 const getCarPhoto = (v) => {
@@ -571,3 +571,4 @@ const Vehicles = () => {
 };
 
 export default Vehicles;
+
