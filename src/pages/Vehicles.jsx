@@ -10,7 +10,7 @@ import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Pagination from '../components/Pagination';
 
-//  Real car photos by brand (fallback)
+// ── Real car photos by brand (fallback)
 const CAR_PHOTOS = {
   renault:    'https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=500&q=80',
   peugeot:    'https://images.unsplash.com/photo-1626668893632-6f3a4466d22f?w=500&q=80',
@@ -28,7 +28,7 @@ const CAR_PHOTOS = {
   default:    'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=500&q=80',
 };
 
-//  Photos permanentes par immatriculation
+// ── Photos permanentes par immatriculation
 const IMMAT_PHOTOS = {
   '240TN5082': 'https://i.ibb.co/FZmVWK6/vec1.jpg',
   '259TN5651': 'https://i.ibb.co/F4SbDBMM/vec2.jpg',
@@ -42,7 +42,7 @@ const IMMAT_PHOTOS = {
   '254TN6632': 'https://i.ibb.co/hxvysSY4/vec10.png',
   '255TN7743': 'https://i.ibb.co/dsfz2VnP/vec11.png',
   '256TN8854': 'https://i.ibb.co/35ccmkFY/vec12.jpg',
-  //  Nouveaux véhicules  Unsplash (imgbb hotlink bloqué)
+  // ✅ Nouveaux véhicules — Cloudinary
   '257TN1301': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155233/vec13_jwhixy.jpg',
   '258TN1402': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155237/vec14_emprhi.jpg',
   '259TN1503': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155235/vec15_y7lazd.jpg',
@@ -65,12 +65,12 @@ const getCarPhoto = (v) => {
   return CAR_PHOTOS[(v?.marque||'').toLowerCase()] || CAR_PHOTOS.default;
 };
 
-//  Vehicle category classification by seats / model keywords
+// ── Vehicle category classification by seats / model keywords
 const CATEGORIES = [
   { key: 'all',     label: 'Tous',          icon: <Car size={14} /> },
-  { key: 'small',   label: 'Petite',        icon: <Car size={14} />, desc: '24 places / citadine' },
+  { key: 'small',   label: 'Petite',        icon: <Car size={14} />, desc: '2–4 places / citadine' },
   { key: 'medium',  label: 'Moyenne',       icon: <Car size={14} />, desc: '5 places / berline' },
-  { key: 'large',   label: 'Grande',        icon: <Car size={14} />, desc: '67 places / familiale' },
+  { key: 'large',   label: 'Grande',        icon: <Car size={14} />, desc: '6–7 places / familiale' },
   { key: 'suv',     label: 'SUV / 4x4',     icon: <Car size={14} /> },
   { key: 'van',     label: 'Van / Utilitaire', icon: <Car size={14} /> },
   { key: 'luxury',  label: 'Luxe / Premium', icon: <Car size={14} /> },
@@ -154,7 +154,8 @@ const Vehicles = () => {
   const filtered = vehicles.filter(v => {
     const q   = search.toLowerCase();
     const matchSearch = !q || [v.marque,v.modele,v.immatriculation,v.couleur].some(f => (f||'').toLowerCase().includes(q));
-    const matchStat   = statFilter === 'all' || v.statut === statFilter;
+    const norm = (s) => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const matchStat   = statFilter === 'all' || norm(v.statut) === norm(statFilter);
     const matchCat    = catFilter  === 'all' || classifyVehicle(v) === catFilter;
     return matchSearch && matchStat && matchCat;
   });
@@ -168,7 +169,7 @@ const Vehicles = () => {
 
   const totalVeh     = vehicles.length;
   const disponibles  = vehicles.filter(v => v.statut === 'disponible').length;
-  const loues        = vehicles.filter(v => v.statut === 'loué').length;
+  const loues        = vehicles.filter(v => (v.statut||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'loue').length;
   const alerts       = vehicles.filter(v => hasAlert(v)).length;
 
   const statutStyle = (s) => ({
@@ -294,17 +295,17 @@ const Vehicles = () => {
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {[
             { value: 'all',          label: 'Tous',         color: NAVY,      bg: '#EFF4FB' },
-            { value: 'disponible',   label: ' Disponible', color: '#16A34A', bg: '#DCFCE7' },
-            { value: 'loué',         label: ' Loué',       color: '#1B3A6B', bg: '#DBEAFE' },
-            { value: 'maintenance',  label: ' Maintenance',color: '#D97706', bg: '#FEF9C3' },
-            { value: 'hors service', label: ' Hors service',color: '#DC2626', bg: '#FEE2E2' },
+            { value: 'disponible',   label: '✅ Disponible', color: '#16A34A', bg: '#DCFCE7' },
+            { value: 'loué',         label: '🚗 Loué',       color: '#1B3A6B', bg: '#DBEAFE' },
+            { value: 'maintenance',  label: '🔧 Maintenance',color: '#D97706', bg: '#FEF9C3' },
+            { value: 'hors service', label: '❌ Hors service',color: '#DC2626', bg: '#FEE2E2' },
           ].map(s => (
             <button key={s.value} onClick={() => handleStatFilt(s.value)}
               style={{ padding: '7px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '12px', background: statFilter === s.value ? s.color : s.bg, color: statFilter === s.value ? 'white' : s.color, transition: 'all 0.15s', boxShadow: statFilter === s.value ? `0 2px 8px ${s.color}40` : 'none' }}>
               {s.label}
               {s.value !== 'all' && (
                 <span style={{ marginLeft: '6px', fontWeight: '800' }}>
-                  ({vehicles.filter(v => v.statut === s.value).length})
+                  ({vehicles.filter(v => (v.statut||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === (s.value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')).length})
                 </span>
               )}
             </button>
@@ -571,4 +572,3 @@ const Vehicles = () => {
 };
 
 export default Vehicles;
-
