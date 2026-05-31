@@ -16,9 +16,6 @@ const GREEN  = '#16A34A';
 const RED    = '#DC2626';
 const PURPLE = '#7C3AED';
 
-// ── Helper: calculate age in years from annee field
-// ── Helper: durée en flotte depuis date_acquisition UNIQUEMENT (Option B)
-// Si date_acquisition est NULL → 0 (pas de fallback sur annee)
 const getAge = (date_acquisition) => {
   if (!date_acquisition) return 0;
   const acq = new Date(date_acquisition);
@@ -26,10 +23,7 @@ const getAge = (date_acquisition) => {
   return (now - acq) / (1000 * 60 * 60 * 24 * 365.25);
 };
 
-// ── Helper: month/year when a vehicle REACHES 3.5 years
-// We assume purchase = Jan 1 of annee → reaches 3.5y = Jul of annee+3
 const getVendreDate = (date_acquisition, annee) => {
-  // Option B: 3.5 ans depuis date_acquisition
   if (date_acquisition) {
     const acq = new Date(date_acquisition);
     const vendreDate = new Date(acq.getTime() + 3.5 * 365.25 * 24 * 3600 * 1000);
@@ -39,7 +33,6 @@ const getVendreDate = (date_acquisition, annee) => {
       label: `${['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][vendreDate.getMonth()]} ${vendreDate.getFullYear()}`
     };
   }
-  // fallback annee
   if (!annee) return null;
   const yr = parseInt(annee) + 3;
   return { year: yr, month: 6, label: `Jul ${yr}` };
@@ -78,15 +71,15 @@ const Dashboard = () => {
   const currentYear = new Date().getFullYear();
   const months = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 
-  // ── Véhicules à vendre: seuil 3.5 ans basé sur v.annee
+  // ✅ FIX: exclure les véhicules déjà vendus
   const vehiclesAVendre = vehicles
-    .filter(v => getAge(v.date_acquisition) >= 3.5)
+    .filter(v => v.statut !== 'vendu' && getAge(v.date_acquisition) >= 3.5)
     .sort((a, b) => getAge(b.date_acquisition) - getAge(a.date_acquisition));
 
-  // ── Graphique: nombre de véhicules atteignant 3.5 ans par mois (2023-2026)
+  // ✅ FIX: graphique exclut les véhicules vendus
   const vendreParMoisData = (() => {
     const map = {};
-    vehicles.forEach(v => {
+    vehicles.filter(v => v.statut !== 'vendu').forEach(v => {
       const d = getVendreDate(v.date_acquisition, v.annee);
       if (!d) return;
       const key = `${d.year}-${String(d.month + 1).padStart(2,'0')}`;
@@ -98,7 +91,6 @@ const Dashboard = () => {
     return Object.values(map).sort((a, b) => a.key.localeCompare(b.key));
   })();
 
-  // ── Monthly activity
   const monthlyData = months.map((m, i) => {
     const monthRes = reservations.filter(r => {
       const d = new Date(r.date_debut);
@@ -115,7 +107,6 @@ const Dashboard = () => {
     };
   });
 
-  // ── Dépenses clients: real payments
   const clientsDepenses = clients.map(c => {
     const clientResIds = reservations.filter(r => r.client === c.id).map(r => r.id);
     const totalPaiements = payments
@@ -140,7 +131,6 @@ const Dashboard = () => {
     accidents:    reservations.filter(r => r.client === c.id && r.a_accident).length,
   })).filter(c => c.reservations > 0).sort((a, b) => b.reservations - a.reservations).slice(0, 8);
 
-  // ── Points fidélité par mois
   const pointsFideliteData = months.map((m, i) => {
     const monthRes = reservations.filter(r => {
       const d = new Date(r.date_debut);
@@ -168,7 +158,6 @@ const Dashboard = () => {
   const totalRevenus   = payments.filter(p => p.statut === 'payé').reduce((s, p) => s + parseFloat(p.montant), 0);
   const totalAccidents = reservations.filter(r => r.a_accident).length;
 
-  // ── Custom tooltip for vendre chart
   const VendreTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     const entry = vendreParMoisData.find(d => d.label === label);
@@ -229,7 +218,7 @@ const Dashboard = () => {
               </div>
               <div style={{ background: '#DCFCE7', border: '1px solid #86EFAC', borderRadius: '8px', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Car size={16} color={GREEN} />
-                <span style={{ fontWeight: '800', color: GREEN, fontSize: '18px' }}>{vehicles.length - vehiclesAVendre.length}</span>
+                <span style={{ fontWeight: '800', color: GREEN, fontSize: '18px' }}>{vehicles.filter(v => v.statut !== 'vendu').length - vehiclesAVendre.length}</span>
                 <span style={{ color: '#166534', fontSize: '12px', fontWeight: '600' }}>véhicules OK (&lt; 3.5 ans)</span>
               </div>
             </div>
@@ -393,7 +382,7 @@ const Dashboard = () => {
       {/* ── Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: '12px', marginBottom: '20px' }}>
         {[
-          { label: 'Véhicules',    value: vehicles.length,                 color: NAVY,   bg: '#EFF4FB', icon: <Car size={19} />,           highlight: false },
+          { label: 'Véhicules',    value: vehicles.filter(v => v.statut !== 'vendu').length, color: NAVY,   bg: '#EFF4FB', icon: <Car size={19} />,           highlight: false },
           { label: 'À vendre',     value: vehiclesAVendre.length,          color: vehiclesAVendre.length > 0 ? RED : GREEN, bg: vehiclesAVendre.length > 0 ? '#FEE2E2' : '#DCFCE7', icon: <Tag size={19} />, highlight: vehiclesAVendre.length > 0 },
           { label: 'Clients',      value: clients.length,                  color: GREEN,  bg: '#DCFCE7', icon: <Users size={19} />,         highlight: false },
           { label: 'Réservations', value: reservations.length,             color: AMBER,  bg: '#FEF3DC', icon: <CalendarCheck size={19} />, highlight: false },
@@ -417,7 +406,7 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* ── À vendre alert — seuil 3.5 ans, 2 premiers + compteur */}
+      {/* ── À vendre alert */}
       {vehiclesAVendre.length > 0 && (
         <div style={{ background: '#FEF3DC', border: '1.5px solid #E8A020', borderRadius: '12px', padding: '14px 18px', marginBottom: '22px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
