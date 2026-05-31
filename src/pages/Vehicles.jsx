@@ -55,6 +55,13 @@ const IMMAT_PHOTOS = {
   '266TN2210': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155236/vec22_gkpzax.jpg',
 };
 
+// ── Helper: age in years from annee field
+const getAge = (annee) => {
+  if (!annee) return 0;
+  const now = new Date();
+  return (now.getFullYear() - parseInt(annee)) + (now.getMonth() / 12);
+};
+
 const getCarPhoto = (v) => {
   if (IMMAT_PHOTOS[v?.immatriculation]) return IMMAT_PHOTOS[v?.immatriculation];
   if (v?.photo) {
@@ -228,6 +235,23 @@ const Vehicles = () => {
     setShowModal(true);
   };
 
+  // ── Vente process
+  const handleMettreEnVente = async (v) => {
+    if (!window.confirm(`Mettre "${v.marque} ${v.modele}" en vente ?\nLe véhicule ne sera plus disponible pour de nouvelles réservations.`)) return;
+    try {
+      await api.patch(`/vehicles/${v.id}/`, { statut: 'a_vendre' });
+      setVehicles(prev => prev.map(x => x.id === v.id ? { ...x, statut: 'a_vendre' } : x));
+    } catch { alert('Erreur lors de la mise en vente'); }
+  };
+
+  const handleMarquerVendu = async (v) => {
+    if (!window.confirm(`Confirmer la vente de "${v.marque} ${v.modele}" ?\nLe véhicule sera retiré de la flotte active.`)) return;
+    try {
+      await api.patch(`/vehicles/${v.id}/`, { statut: 'vendu' });
+      setVehicles(prev => prev.map(x => x.id === v.id ? { ...x, statut: 'vendu' } : x));
+    } catch { alert('Erreur lors de la confirmation de vente'); }
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm('Supprimer ce véhicule ?')) return;
     try { await api.delete(`/vehicles/${id}/`); fetchAll(); }
@@ -298,6 +322,8 @@ const Vehicles = () => {
             { value: 'disponible',   label: '✅ Disponible', color: '#16A34A', bg: '#DCFCE7' },
             { value: 'loué',         label: '🚗 Loué',       color: '#1B3A6B', bg: '#DBEAFE' },
             { value: 'maintenance',  label: '🔧 Maintenance',color: '#D97706', bg: '#FEF9C3' },
+            { value: 'a_vendre',     label: '🔴 À vendre',   color: '#E8A020', bg: '#FEF3DC' },
+            { value: 'vendu',        label: '✅ Vendu',       color: '#64748B', bg: '#F1F5F9' },
             { value: 'hors service', label: '❌ Hors service',color: '#DC2626', bg: '#FEE2E2' },
           ].map(s => (
             <button key={s.value} onClick={() => handleStatFilt(s.value)}
@@ -352,6 +378,11 @@ const Vehicles = () => {
                     <span style={{ background: st.bg, color: st.color, padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '700', backdropFilter: 'blur(4px)' }}>
                       {st.label}
                     </span>
+                    {getAge(v.annee) >= 3.5 && v.statut !== 'a_vendre' && v.statut !== 'vendu' && (
+                      <span style={{ fontSize: '10px', fontWeight: '800', padding: '2px 6px', borderRadius: '4px', background: 'rgba(232,160,32,0.9)', color: 'white' }}>
+                        🔴 +3.5a
+                      </span>
+                    )}
                     <span style={{ background: 'rgba(255,255,255,0.9)', color: '#64748B', padding: '3px 8px', borderRadius: '10px', fontSize: '10.5px', fontWeight: '600' }}>
                       {catInfo?.label}
                     </span>
@@ -423,20 +454,42 @@ const Vehicles = () => {
                     ))}
                   </div>
 
-                  <div style={{ display: 'flex', gap: '7px' }}>
-                    <button onClick={() => openEdit(v)}
-                      style={{ flex: 1, padding: '8px', background: NAVY, color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
-                      <Pencil size={13} /> Modifier
-                    </button>
-                    <button onClick={() => navigate(`/vehicles/${v.id}/state`)}
-                      style={{ flex: 1, padding: '8px', background: '#EFF4FB', color: NAVY, border: '1.5px solid #DDE3ED', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
-                      <FileText size={13} /> Rapport état
-                    </button>
-                    {isAdmin && (
-                      <button onClick={() => handleDelete(v.id)}
-                        style={{ width: '36px', padding: '8px', background: '#FEE2E2', color: '#DC2626', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Trash2 size={14} />
+                  {/* ── Action buttons */}
+                  <div style={{ display: 'flex', gap: '7px', flexDirection: 'column' }}>
+                    {/* Row 1: Modifier + Rapport */}
+                    <div style={{ display: 'flex', gap: '7px' }}>
+                      <button onClick={() => openEdit(v)}
+                        style={{ flex: 1, padding: '8px', background: NAVY, color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                        <Pencil size={13} /> Modifier
                       </button>
+                      <button onClick={() => navigate(`/vehicles/${v.id}/state`)}
+                        style={{ flex: 1, padding: '8px', background: '#EFF4FB', color: NAVY, border: '1.5px solid #DDE3ED', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                        <FileText size={13} /> Rapport état
+                      </button>
+                      {isAdmin && (
+                        <button onClick={() => handleDelete(v.id)}
+                          style={{ width: '36px', padding: '8px', background: '#FEE2E2', color: '#DC2626', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                    {/* Row 2: Vente buttons — shown only when relevant */}
+                    {isAdmin && v.statut !== 'vendu' && getAge(v.annee) >= 3.5 && v.statut !== 'a_vendre' && (
+                      <button onClick={() => handleMettreEnVente(v)}
+                        style={{ width: '100%', padding: '8px', background: '#FEF3DC', color: '#E8A020', border: '1.5px solid #FCD34D', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                        🔴 Mettre en vente
+                      </button>
+                    )}
+                    {isAdmin && v.statut === 'a_vendre' && (
+                      <button onClick={() => handleMarquerVendu(v)}
+                        style={{ width: '100%', padding: '8px', background: '#DCFCE7', color: '#16A34A', border: '1.5px solid #86EFAC', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                        ✅ Marquer comme vendu
+                      </button>
+                    )}
+                    {v.statut === 'vendu' && (
+                      <div style={{ width: '100%', padding: '8px', background: '#F1F5F9', color: '#64748B', borderRadius: '8px', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                        ✅ Véhicule vendu
+                      </div>
                     )}
                   </div>
                 </div>
@@ -481,6 +534,8 @@ const Vehicles = () => {
                       <option value="disponible">Disponible</option>
                       <option value="loué">Loué</option>
                       <option value="maintenance">Maintenance</option>
+                      <option value="a_vendre">🔴 À vendre</option>
+                      <option value="vendu">✅ Vendu</option>
                       <option value="hors service">Hors service</option>
                     </select>
                   </div>
