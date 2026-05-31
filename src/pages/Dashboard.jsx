@@ -23,19 +23,16 @@ const getAge = (date_acquisition) => {
   return (now - acq) / (1000 * 60 * 60 * 24 * 365.25);
 };
 
-const getVendreDate = (date_acquisition, annee) => {
-  if (date_acquisition) {
-    const acq = new Date(date_acquisition);
-    const vendreDate = new Date(acq.getTime() + 3.5 * 365.25 * 24 * 3600 * 1000);
-    return {
-      year: vendreDate.getFullYear(),
-      month: vendreDate.getMonth(),
-      label: `${['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][vendreDate.getMonth()]} ${vendreDate.getFullYear()}`
-    };
-  }
-  if (!annee) return null;
-  const yr = parseInt(annee) + 3;
-  return { year: yr, month: 6, label: `Jul ${yr}` };
+const getVendreDate = (date_acquisition) => {
+  // ✅ FIX: si pas de date_acquisition → ignorer ce véhicule dans le graphique
+  if (!date_acquisition) return null;
+  const acq = new Date(date_acquisition);
+  const vendreDate = new Date(acq.getTime() + 3.5 * 365.25 * 24 * 3600 * 1000);
+  return {
+    year: vendreDate.getFullYear(),
+    month: vendreDate.getMonth(),
+    label: `${['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][vendreDate.getMonth()]} ${vendreDate.getFullYear()}`
+  };
 };
 
 // Statuts à exclure = véhicules déjà en cours de vente ou vendus
@@ -86,7 +83,7 @@ const Dashboard = () => {
   const vendreParMoisData = (() => {
     const map = {};
     activeVehicles.forEach(v => {
-      const d = getVendreDate(v.date_acquisition, v.annee);
+      const d = getVendreDate(v.date_acquisition);
       if (!d) return;
       const key = `${d.year}-${String(d.month + 1).padStart(2,'0')}`;
       const label = `${months[d.month]} ${d.year}`;
