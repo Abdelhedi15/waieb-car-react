@@ -17,7 +17,13 @@ const RED    = '#DC2626';
 const PURPLE = '#7C3AED';
 
 // ── Helper: calculate age in years from annee field
-const getAge = (annee) => {
+// ── Helper: durée en flotte depuis date_acquisition (Option B)
+const getAge = (date_acquisition, annee) => {
+  if (date_acquisition) {
+    const acq = new Date(date_acquisition);
+    const now = new Date();
+    return (now - acq) / (1000 * 60 * 60 * 24 * 365.25);
+  }
   if (!annee) return 0;
   const now = new Date();
   return (now.getFullYear() - parseInt(annee)) + (now.getMonth() / 12);
@@ -25,10 +31,21 @@ const getAge = (annee) => {
 
 // ── Helper: month/year when a vehicle REACHES 3.5 years
 // We assume purchase = Jan 1 of annee → reaches 3.5y = Jul of annee+3
-const getVendreDate = (annee) => {
+const getVendreDate = (date_acquisition, annee) => {
+  // Option B: 3.5 ans depuis date_acquisition
+  if (date_acquisition) {
+    const acq = new Date(date_acquisition);
+    const vendreDate = new Date(acq.getTime() + 3.5 * 365.25 * 24 * 3600 * 1000);
+    return {
+      year: vendreDate.getFullYear(),
+      month: vendreDate.getMonth(),
+      label: `${['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][vendreDate.getMonth()]} ${vendreDate.getFullYear()}`
+    };
+  }
+  // fallback annee
   if (!annee) return null;
   const yr = parseInt(annee) + 3;
-  return { year: yr, month: 6, label: `Jul ${yr}` }; // month 6 = July (0-indexed)
+  return { year: yr, month: 6, label: `Jul ${yr}` };
 };
 
 const Dashboard = () => {
@@ -66,14 +83,14 @@ const Dashboard = () => {
 
   // ── Véhicules à vendre: seuil 3.5 ans basé sur v.annee
   const vehiclesAVendre = vehicles
-    .filter(v => getAge(v.annee) >= 3.5)
-    .sort((a, b) => getAge(b.annee) - getAge(a.annee));
+    .filter(v => getAge(v.date_acquisition, v.annee) >= 3.5)
+    .sort((a, b) => getAge(b.date_acquisition, b.annee) - getAge(a.date_acquisition, a.annee));
 
   // ── Graphique: nombre de véhicules atteignant 3.5 ans par mois (2023-2026)
   const vendreParMoisData = (() => {
     const map = {};
     vehicles.forEach(v => {
-      const d = getVendreDate(v.annee);
+      const d = getVendreDate(v.date_acquisition, v.annee);
       if (!d) return;
       const key = `${d.year}-${String(d.month + 1).padStart(2,'0')}`;
       const label = `${months[d.month]} ${d.year}`;
@@ -419,7 +436,7 @@ const Dashboard = () => {
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {vehiclesAVendre.slice(0, 2).map(v => {
-              const age = getAge(v.annee).toFixed(1);
+              const age = getAge(v.date_acquisition, v.annee).toFixed(1);
               return (
                 <div key={v.id} style={{ background: 'white', border: '1.5px solid #FCA5A5', borderRadius: '8px', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -499,7 +516,7 @@ const Dashboard = () => {
                   nbRes:   reservations.filter(r => r.vehicle === v.id).length,
                   nbAcc:   reservations.filter(r => r.vehicle === v.id && r.a_accident).length,
                   aVendre: vehiclesAVendre.some(x => x.id === v.id),
-                  age:     v.annee ? getAge(v.annee).toFixed(1) : null,
+                  age:     getAge(v.date_acquisition, v.annee) > 0 ? getAge(v.date_acquisition, v.annee).toFixed(1) : null,
                 }))
                 .sort((a, b) => b.nbRes - a.nbRes)
                 .slice(0, 8)
