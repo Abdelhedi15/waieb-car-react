@@ -17,16 +17,13 @@ const RED    = '#DC2626';
 const PURPLE = '#7C3AED';
 
 // ── Helper: calculate age in years from annee field
-// ── Helper: durée en flotte depuis date_acquisition (Option B)
-const getAge = (date_acquisition, annee) => {
-  if (date_acquisition) {
-    const acq = new Date(date_acquisition);
-    const now = new Date();
-    return (now - acq) / (1000 * 60 * 60 * 24 * 365.25);
-  }
-  if (!annee) return 0;
+// ── Helper: durée en flotte depuis date_acquisition UNIQUEMENT (Option B)
+// Si date_acquisition est NULL → 0 (pas de fallback sur annee)
+const getAge = (date_acquisition) => {
+  if (!date_acquisition) return 0;
+  const acq = new Date(date_acquisition);
   const now = new Date();
-  return (now.getFullYear() - parseInt(annee)) + (now.getMonth() / 12);
+  return (now - acq) / (1000 * 60 * 60 * 24 * 365.25);
 };
 
 // ── Helper: month/year when a vehicle REACHES 3.5 years
@@ -83,8 +80,8 @@ const Dashboard = () => {
 
   // ── Véhicules à vendre: seuil 3.5 ans basé sur v.annee
   const vehiclesAVendre = vehicles
-    .filter(v => getAge(v.date_acquisition, v.annee) >= 3.5)
-    .sort((a, b) => getAge(b.date_acquisition, b.annee) - getAge(a.date_acquisition, a.annee));
+    .filter(v => getAge(v.date_acquisition) >= 3.5)
+    .sort((a, b) => getAge(b.date_acquisition) - getAge(a.date_acquisition));
 
   // ── Graphique: nombre de véhicules atteignant 3.5 ans par mois (2023-2026)
   const vendreParMoisData = (() => {
@@ -436,7 +433,7 @@ const Dashboard = () => {
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {vehiclesAVendre.slice(0, 2).map(v => {
-              const age = getAge(v.date_acquisition, v.annee).toFixed(1);
+              const age = getAge(v.date_acquisition).toFixed(1);
               return (
                 <div key={v.id} style={{ background: 'white', border: '1.5px solid #FCA5A5', borderRadius: '8px', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -516,7 +513,7 @@ const Dashboard = () => {
                   nbRes:   reservations.filter(r => r.vehicle === v.id).length,
                   nbAcc:   reservations.filter(r => r.vehicle === v.id && r.a_accident).length,
                   aVendre: vehiclesAVendre.some(x => x.id === v.id),
-                  age:     getAge(v.date_acquisition, v.annee) > 0 ? getAge(v.date_acquisition, v.annee).toFixed(1) : null,
+                  age:     getAge(v.date_acquisition) > 0 ? getAge(v.date_acquisition).toFixed(1) : null,
                 }))
                 .sort((a, b) => b.nbRes - a.nbRes)
                 .slice(0, 8)

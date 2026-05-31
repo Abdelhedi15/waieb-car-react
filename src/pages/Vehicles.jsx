@@ -55,16 +55,12 @@ const IMMAT_PHOTOS = {
   '266TN2210': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155236/vec22_gkpzax.jpg',
 };
 
-// ── Helper: durée en flotte depuis date_acquisition (Option B)
-const getAge = (date_acquisition, annee) => {
-  if (date_acquisition) {
-    const acq = new Date(date_acquisition);
-    const now = new Date();
-    return (now - acq) / (1000 * 60 * 60 * 24 * 365.25);
-  }
-  if (!annee) return 0;
+// ── Helper: durée en flotte depuis date_acquisition UNIQUEMENT (Option B)
+const getAge = (date_acquisition) => {
+  if (!date_acquisition) return 0;
+  const acq = new Date(date_acquisition);
   const now = new Date();
-  return (now.getFullYear() - parseInt(annee)) + (now.getMonth() / 12);
+  return (now - acq) / (1000 * 60 * 60 * 24 * 365.25);
 };
 
 const getCarPhoto = (v) => {
@@ -383,7 +379,7 @@ const Vehicles = () => {
                     <span style={{ background: st.bg, color: st.color, padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '700', backdropFilter: 'blur(4px)' }}>
                       {st.label}
                     </span>
-                    {getAge(v.date_acquisition, v.annee) >= 3.5 && v.statut !== 'a_vendre' && v.statut !== 'vendu' && (
+                    {getAge(v.date_acquisition) >= 3.5 && v.statut !== 'a_vendre' && v.statut !== 'vendu' && (
                       <span style={{ fontSize: '10px', fontWeight: '800', padding: '2px 6px', borderRadius: '4px', background: 'rgba(232,160,32,0.9)', color: 'white' }}>
                         🔴 +3.5a
                       </span>
@@ -479,7 +475,7 @@ const Vehicles = () => {
                       )}
                     </div>
                     {/* Row 2: Vente buttons — shown only when relevant */}
-                    {isAdmin && v.statut !== 'vendu' && getAge(v.date_acquisition, v.annee) >= 3.5 && v.statut !== 'a_vendre' && (
+                    {isAdmin && v.statut !== 'vendu' && getAge(v.date_acquisition) >= 3.5 && v.statut !== 'a_vendre' && (
                       <button onClick={() => handleMettreEnVente(v)}
                         style={{ width: '100%', padding: '8px', background: '#FEF3DC', color: '#E8A020', border: '1.5px solid #FCD34D', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                         🔴 Mettre en vente
