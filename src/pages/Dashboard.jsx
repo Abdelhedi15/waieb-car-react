@@ -38,6 +38,9 @@ const getVendreDate = (date_acquisition, annee) => {
   return { year: yr, month: 6, label: `Jul ${yr}` };
 };
 
+// Statuts à exclure = véhicules déjà en cours de vente ou vendus
+const SOLD_STATUTS = ['vendu', 'a_vendre'];
+
 const Dashboard = () => {
   const [reservations, setReservations] = useState([]);
   const [clients,      setClients]      = useState([]);
@@ -71,15 +74,18 @@ const Dashboard = () => {
   const currentYear = new Date().getFullYear();
   const months = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 
-  // ✅ FIX: exclure les véhicules déjà vendus
-  const vehiclesAVendre = vehicles
-    .filter(v => v.statut !== 'vendu' && getAge(v.date_acquisition) >= 3.5)
+  // Véhicules actifs = ni vendus ni en cours de vente
+  const activeVehicles = vehicles.filter(v => !SOLD_STATUTS.includes(v.statut));
+
+  // ✅ FIX: uniquement les véhicules actifs qui dépassent 3.5 ans
+  const vehiclesAVendre = activeVehicles
+    .filter(v => getAge(v.date_acquisition) >= 3.5)
     .sort((a, b) => getAge(b.date_acquisition) - getAge(a.date_acquisition));
 
-  // ✅ FIX: graphique exclut les véhicules vendus
+  // ✅ FIX: graphique basé uniquement sur véhicules actifs
   const vendreParMoisData = (() => {
     const map = {};
-    vehicles.filter(v => v.statut !== 'vendu').forEach(v => {
+    activeVehicles.forEach(v => {
       const d = getVendreDate(v.date_acquisition, v.annee);
       if (!d) return;
       const key = `${d.year}-${String(d.month + 1).padStart(2,'0')}`;
@@ -218,7 +224,7 @@ const Dashboard = () => {
               </div>
               <div style={{ background: '#DCFCE7', border: '1px solid #86EFAC', borderRadius: '8px', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Car size={16} color={GREEN} />
-                <span style={{ fontWeight: '800', color: GREEN, fontSize: '18px' }}>{vehicles.filter(v => v.statut !== 'vendu').length - vehiclesAVendre.length}</span>
+                <span style={{ fontWeight: '800', color: GREEN, fontSize: '18px' }}>{activeVehicles.length - vehiclesAVendre.length}</span>
                 <span style={{ color: '#166534', fontSize: '12px', fontWeight: '600' }}>véhicules OK (&lt; 3.5 ans)</span>
               </div>
             </div>
@@ -382,7 +388,7 @@ const Dashboard = () => {
       {/* ── Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: '12px', marginBottom: '20px' }}>
         {[
-          { label: 'Véhicules',    value: vehicles.filter(v => v.statut !== 'vendu').length, color: NAVY,   bg: '#EFF4FB', icon: <Car size={19} />,           highlight: false },
+          { label: 'Véhicules',    value: activeVehicles.length,           color: NAVY,   bg: '#EFF4FB', icon: <Car size={19} />,           highlight: false },
           { label: 'À vendre',     value: vehiclesAVendre.length,          color: vehiclesAVendre.length > 0 ? RED : GREEN, bg: vehiclesAVendre.length > 0 ? '#FEE2E2' : '#DCFCE7', icon: <Tag size={19} />, highlight: vehiclesAVendre.length > 0 },
           { label: 'Clients',      value: clients.length,                  color: GREEN,  bg: '#DCFCE7', icon: <Users size={19} />,         highlight: false },
           { label: 'Réservations', value: reservations.length,             color: AMBER,  bg: '#FEF3DC', icon: <CalendarCheck size={19} />, highlight: false },
