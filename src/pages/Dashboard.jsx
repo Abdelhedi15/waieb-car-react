@@ -177,7 +177,7 @@ const Dashboard = () => {
   };
 
   const chartOptions = [
-    { value: 'depenses',      label: 'Dépenses clients',             desc: 'Montants dépensés par client (DT)',               icon: <CreditCard    size={14} /> },
+    { value: 'depenses',      label: 'Revenus encaissés',            desc: 'Montants encaissés par client (DT)',              icon: <Banknote      size={14} /> },
     { value: 'vendre_mois',   label: 'Véhicules à vendre par mois',  desc: 'Nb de véhicules atteignant 3.5 ans par mois',     icon: <Tag           size={14} /> },
     { value: 'activite',      label: 'Activité mensuelle',           desc: 'Réservations, contrats et accidents par mois',    icon: <TrendingUp    size={14} /> },
     { value: 'points_mois',   label: 'Points fidélité par mois',     desc: 'Points gagnés et échangés chaque mois',           icon: <Star          size={14} /> },
