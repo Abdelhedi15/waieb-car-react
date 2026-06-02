@@ -37,7 +37,7 @@ const IMMAT_PHOTOS = {
   '234TN2126': 'https://i.ibb.co/prkyKtjv/vec5.jpg',
   '244TN7005': 'https://i.ibb.co/P81vS80/vec6.jpg',
   '251TN1694': 'https://i.ibb.co/5WBKGTGL/vec7.jpg',
-  '252TN3310': 'https://i.ibb.co/9kNtVZGB/vec8.png',
+  '252TN3310':'https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=400&q=80',
   '253TN4421': 'https://i.ibb.co/jvRzYcDB/vec9.png',
   '254TN6632': 'https://i.ibb.co/hxvysSY4/vec10.png',
   '255TN7743': 'https://i.ibb.co/dsfz2VnP/vec11.png',
@@ -75,13 +75,13 @@ const getCarPhoto = (v) => {
 
 // ── Vehicle category classification by seats / model keywords
 const CATEGORIES = [
-  { key: 'all',     label: 'Tous',          icon: <Car size={14} /> },
-  { key: 'small',   label: 'Petite',        icon: <Car size={14} />, desc: '2–4 places / citadine' },
-  { key: 'medium',  label: 'Moyenne',       icon: <Car size={14} />, desc: '5 places / berline' },
-  { key: 'large',   label: 'Grande',        icon: <Car size={14} />, desc: '6–7 places / familiale' },
-  { key: 'suv',     label: 'SUV / 4x4',     icon: <Car size={14} /> },
-  { key: 'van',     label: 'Van / Utilitaire', icon: <Car size={14} /> },
-  { key: 'luxury',  label: 'Luxe / Premium', icon: <Car size={14} /> },
+  { key: 'all',    label: 'Tous',             icon: '🚗' },
+  { key: 'small',  label: 'Petite',           icon: '🚙' },
+  { key: 'medium', label: 'Moyenne',          icon: '🚘' },
+  { key: 'large',  label: 'Grande',           icon: '🚖' },
+  { key: 'suv',    label: 'SUV / 4x4',        icon: '🏔️' },
+  { key: 'van',    label: 'Van / Utilitaire', icon: '🚐' },
+  { key: 'luxury', label: 'Luxe / Premium',   icon: '💎' },
 ];
 
 const SMALL_MODELS   = ['clio','picanto','ibiza','fabia','fiesta','yaris','i20','208','polo','c3','i10','aygo','up','smart'];
@@ -301,7 +301,7 @@ const Vehicles = () => {
           return (
             <button key={cat.key} onClick={() => handleCatFilt(cat.key)}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '20px', border: active ? 'none' : '1.5px solid #DDE3ED', background: active ? NAVY : 'white', color: active ? 'white' : '#64748B', fontWeight: active ? '700' : '500', fontSize: '12.5px', cursor: 'pointer', transition: 'all 0.14s' }}>
-              {cat.icon} {cat.label}
+              <span style={{marginRight:'4px'}}>{cat.icon}</span>{cat.label}
               <span style={{ background: active ? 'rgba(255,255,255,0.2)' : '#F1F5F9', color: active ? 'white' : '#64748B', padding: '1px 7px', borderRadius: '10px', fontSize: '11px', fontWeight: '700' }}>
                 {count}
               </span>
