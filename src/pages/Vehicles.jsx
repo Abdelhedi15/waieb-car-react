@@ -3,14 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   Car, Plus, Pencil, Trash2, FileText, Search,
   Fuel, Users, Gauge, Palette, AlertTriangle,
-  CheckCircle, Wrench, Shield, ChevronDown, ChevronUp,
-  Filter, SlidersHorizontal,
+  CheckCircle, Wrench, Shield, Tag, XCircle,
+  Filter, SlidersHorizontal, Key, Settings,
 } from 'lucide-react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import Pagination from '../components/Pagination';
 
-// ── Real car photos by brand (fallback)
 const CAR_PHOTOS = {
   renault:    'https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=500&q=80',
   peugeot:    'https://images.unsplash.com/photo-1626668893632-6f3a4466d22f?w=500&q=80',
@@ -28,7 +27,6 @@ const CAR_PHOTOS = {
   default:    'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=500&q=80',
 };
 
-// ── Photos permanentes par immatriculation
 const IMMAT_PHOTOS = {
   '240TN5082': 'https://i.ibb.co/FZmVWK6/vec1.jpg',
   '259TN5651': 'https://i.ibb.co/F4SbDBMM/vec2.jpg',
@@ -37,12 +35,11 @@ const IMMAT_PHOTOS = {
   '234TN2126': 'https://i.ibb.co/prkyKtjv/vec5.jpg',
   '244TN7005': 'https://i.ibb.co/P81vS80/vec6.jpg',
   '251TN1694': 'https://i.ibb.co/5WBKGTGL/vec7.jpg',
-  '252TN3310':'https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=400&q=80',
+  '252TN3310': 'https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=400&q=80',
   '253TN4421': 'https://i.ibb.co/jvRzYcDB/vec9.png',
   '254TN6632': 'https://i.ibb.co/hxvysSY4/vec10.png',
   '255TN7743': 'https://i.ibb.co/dsfz2VnP/vec11.png',
   '256TN8854': 'https://i.ibb.co/35ccmkFY/vec12.jpg',
-  // ✅ Nouveaux véhicules — Cloudinary
   '257TN1301': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155233/vec13_jwhixy.jpg',
   '258TN1402': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155237/vec14_emprhi.jpg',
   '259TN1503': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155235/vec15_y7lazd.jpg',
@@ -55,7 +52,6 @@ const IMMAT_PHOTOS = {
   '266TN2210': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155236/vec22_gkpzax.jpg',
 };
 
-// ── Helper: durée en flotte depuis date_acquisition UNIQUEMENT (Option B)
 const getAge = (date_acquisition) => {
   if (!date_acquisition) return 0;
   const acq = new Date(date_acquisition);
@@ -73,7 +69,7 @@ const getCarPhoto = (v) => {
   return CAR_PHOTOS[(v?.marque||'').toLowerCase()] || CAR_PHOTOS.default;
 };
 
-// ── Vehicle category classification by seats / model keywords
+// ✅ Catégories avec emojis distinctifs
 const CATEGORIES = [
   { key: 'all',    label: 'Tous',             icon: '🚗' },
   { key: 'small',  label: 'Petite',           icon: '🚙' },
@@ -82,6 +78,17 @@ const CATEGORIES = [
   { key: 'suv',    label: 'SUV / 4x4',        icon: '🏔️' },
   { key: 'van',    label: 'Van / Utilitaire', icon: '🚐' },
   { key: 'luxury', label: 'Luxe / Premium',   icon: '💎' },
+];
+
+// ✅ Statuts avec icônes Lucide professionnelles
+const STATUT_FILTERS = [
+  { value: 'all',          label: 'Tous',         icon: null,                     color: '#1B3A6B', bg: '#EFF4FB' },
+  { value: 'disponible',   label: 'Disponible',   icon: <CheckCircle size={13}/>, color: '#16A34A', bg: '#DCFCE7' },
+  { value: 'loué',         label: 'Loué',         icon: <Key size={13}/>,         color: '#1B3A6B', bg: '#DBEAFE' },
+  { value: 'maintenance',  label: 'Maintenance',  icon: <Wrench size={13}/>,      color: '#D97706', bg: '#FEF9C3' },
+  { value: 'a_vendre',     label: 'À vendre',     icon: <Tag size={13}/>,         color: '#E8A020', bg: '#FEF3DC' },
+  { value: 'vendu',        label: 'Vendu',        icon: <Shield size={13}/>,      color: '#64748B', bg: '#F1F5F9' },
+  { value: 'hors service', label: 'Hors service', icon: <XCircle size={13}/>,     color: '#DC2626', bg: '#FEE2E2' },
 ];
 
 const SMALL_MODELS   = ['clio','picanto','ibiza','fabia','fiesta','yaris','i20','208','polo','c3','i10','aygo','up','smart'];
@@ -97,7 +104,6 @@ const classifyVehicle = (v) => {
   const places  = parseInt(v.nombre_places || 5);
   const prix    = parseFloat(v.prix_journalier || 0);
   const combined = `${brand} ${model}`;
-
   if (LUXURY_KEYWORDS.some(k => combined.includes(k)) || prix > 200) return 'luxury';
   if (VAN_KEYWORDS.some(k => combined.includes(k)))                   return 'van';
   if (SUV_KEYWORDS.some(k => combined.includes(k)))                   return 'suv';
@@ -122,19 +128,18 @@ const Vehicles = () => {
   const isAdmin     = user?.role === 'admin';
   const navigate    = useNavigate();
 
-  const [vehicles,   setVehicles]   = useState([]);
+  const [vehicles,     setVehicles]     = useState([]);
   const [reservations, setReservations] = useState([]);
-  const [showModal,  setShowModal]  = useState(false);
-  const [editingVeh, setEditingVeh] = useState(null);
-  const [form,       setForm]       = useState(EMPTY_FORM);
-  const [loading,    setLoading]    = useState(false);
-  const [search,     setSearch]     = useState('');
-  const [statFilter, setStatFilter] = useState('all');
-  const [catFilter,  setCatFilter]  = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [activeTab,  setActiveTab]  = useState('infos');
-  const [expandedId, setExpandedId] = useState(null);
-  const [photoFile,  setPhotoFile]  = useState(null);
+  const [showModal,    setShowModal]    = useState(false);
+  const [editingVeh,   setEditingVeh]   = useState(null);
+  const [form,         setForm]         = useState(EMPTY_FORM);
+  const [loading,      setLoading]      = useState(false);
+  const [search,       setSearch]       = useState('');
+  const [statFilter,   setStatFilter]   = useState('all');
+  const [catFilter,    setCatFilter]    = useState('all');
+  const [currentPage,  setCurrentPage]  = useState(1);
+  const [activeTab,    setActiveTab]    = useState('infos');
+  const [photoFile,    setPhotoFile]    = useState(null);
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -159,10 +164,11 @@ const Vehicles = () => {
     return soon(v.date_revision) || soon(v.date_assurance) || soon(v.date_ct);
   };
 
+  const norm = (s) => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
   const filtered = vehicles.filter(v => {
-    const q   = search.toLowerCase();
+    const q = search.toLowerCase();
     const matchSearch = !q || [v.marque,v.modele,v.immatriculation,v.couleur].some(f => (f||'').toLowerCase().includes(q));
-    const norm = (s) => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const matchStat   = statFilter === 'all' || norm(v.statut) === norm(statFilter);
     const matchCat    = catFilter  === 'all' || classifyVehicle(v) === catFilter;
     return matchSearch && matchStat && matchCat;
@@ -175,33 +181,31 @@ const Vehicles = () => {
   const handleStatFilt = (v) => { setStatFilter(v); setCurrentPage(1); };
   const handleCatFilt  = (v) => { setCatFilter(v);  setCurrentPage(1); };
 
-  const totalVeh     = vehicles.length;
-  const disponibles  = vehicles.filter(v => v.statut === 'disponible').length;
-  const loues        = vehicles.filter(v => (v.statut||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'loue').length;
-  const alerts       = vehicles.filter(v => hasAlert(v)).length;
+  const totalVeh    = vehicles.length;
+  const disponibles = vehicles.filter(v => v.statut === 'disponible').length;
+  const loues       = vehicles.filter(v => norm(v.statut) === 'loue').length;
+  const alerts      = vehicles.filter(v => hasAlert(v)).length;
 
   const statutStyle = (s) => ({
-    disponible:  { bg: '#DCFCE7', color: '#16A34A', label: 'disponible' },
-    'loué':      { bg: '#DBEAFE', color: '#1B3A6B', label: 'loué' },
-    maintenance: { bg: '#FEF9C3', color: '#D97706', label: 'maintenance' },
+    disponible:     { bg: '#DCFCE7', color: '#16A34A', label: 'disponible' },
+    'loué':         { bg: '#DBEAFE', color: '#1B3A6B', label: 'loué' },
+    maintenance:    { bg: '#FEF9C3', color: '#D97706', label: 'maintenance' },
     'hors service': { bg: '#FEE2E2', color: '#DC2626', label: 'hors service' },
+    'a_vendre':     { bg: '#FEF3DC', color: '#E8A020', label: 'à vendre' },
+    'vendu':        { bg: '#F1F5F9', color: '#64748B', label: 'vendu' },
   }[s] || { bg: '#F1F5F9', color: '#64748B', label: s });
 
   const etatStyle = (e) => ({
-    excellent:    { bg: '#DCFCE7', color: '#16A34A', label: 'Excellent état' },
-    defauts:      { bg: '#FEF9C3', color: '#D97706', label: 'Défauts mineurs' },
-    dommages:     { bg: '#FEE2E2', color: '#DC2626', label: 'Dommages visibles' },
-    sinistre:     { bg: '#FEE2E2', color: '#DC2626', label: 'Sinistre déclaré' },
+    excellent: { bg: '#DCFCE7', color: '#16A34A', label: 'Excellent état' },
+    defauts:   { bg: '#FEF9C3', color: '#D97706', label: 'Défauts mineurs' },
+    dommages:  { bg: '#FEE2E2', color: '#DC2626', label: 'Dommages visibles' },
+    sinistre:  { bg: '#FEE2E2', color: '#DC2626', label: 'Sinistre déclaré' },
   }[e] || { bg: '#F1F5F9', color: '#64748B', label: e });
 
   const suggestPrices = () => {
     const base = parseFloat(form.prix_journalier);
     if (isNaN(base) || base <= 0) return;
-    setForm(f => ({
-      ...f,
-      prix_haute_saison:      (base * 1.25).toFixed(2),
-      prix_tres_haute_saison: (base * 1.50).toFixed(2),
-    }));
+    setForm(f => ({ ...f, prix_haute_saison: (base * 1.25).toFixed(2), prix_tres_haute_saison: (base * 1.50).toFixed(2) }));
   };
 
   const handleSubmit = async (e) => {
@@ -214,43 +218,29 @@ const Vehicles = () => {
       const cfg = { headers: { 'Content-Type': 'multipart/form-data' } };
       if (editingVeh) await api.put(`/vehicles/${editingVeh.id}/`, fd, cfg);
       else            await api.post('/vehicles/', fd, cfg);
-      fetchAll();
-      setShowModal(false);
-      setPhotoFile(null);
-    } catch (err) {
-      alert('Erreur: ' + JSON.stringify(err.response?.data));
-    } finally { setLoading(false); }
+      fetchAll(); setShowModal(false); setPhotoFile(null);
+    } catch (err) { alert('Erreur: ' + JSON.stringify(err.response?.data)); }
+    finally { setLoading(false); }
   };
 
   const openEdit = (v) => {
     setEditingVeh(v);
     setForm({ ...EMPTY_FORM, ...v, prix_journalier: v.prix_journalier || '', prix_haute_saison: v.prix_haute_saison || '', prix_tres_haute_saison: v.prix_tres_haute_saison || '' });
-    setActiveTab('infos');
-    setShowModal(true);
+    setActiveTab('infos'); setShowModal(true);
   };
 
-  const openAdd = () => {
-    setEditingVeh(null);
-    setForm(EMPTY_FORM);
-    setActiveTab('infos');
-    setShowModal(true);
-  };
+  const openAdd = () => { setEditingVeh(null); setForm(EMPTY_FORM); setActiveTab('infos'); setShowModal(true); };
 
-  // ── Vente process
   const handleMettreEnVente = async (v) => {
-    if (!window.confirm(`Mettre "${v.marque} ${v.modele}" en vente ?\nLe véhicule ne sera plus disponible pour de nouvelles réservations.`)) return;
-    try {
-      await api.patch(`/vehicles/${v.id}/`, { statut: 'a_vendre' });
-      setVehicles(prev => prev.map(x => x.id === v.id ? { ...x, statut: 'a_vendre' } : x));
-    } catch { alert('Erreur lors de la mise en vente'); }
+    if (!window.confirm(`Mettre "${v.marque} ${v.modele}" en vente ?`)) return;
+    try { await api.patch(`/vehicles/${v.id}/`, { statut: 'a_vendre' }); setVehicles(prev => prev.map(x => x.id === v.id ? { ...x, statut: 'a_vendre' } : x)); }
+    catch { alert('Erreur lors de la mise en vente'); }
   };
 
   const handleMarquerVendu = async (v) => {
-    if (!window.confirm(`Confirmer la vente de "${v.marque} ${v.modele}" ?\nLe véhicule sera retiré de la flotte active.`)) return;
-    try {
-      await api.patch(`/vehicles/${v.id}/`, { statut: 'vendu' });
-      setVehicles(prev => prev.map(x => x.id === v.id ? { ...x, statut: 'vendu' } : x));
-    } catch { alert('Erreur lors de la confirmation de vente'); }
+    if (!window.confirm(`Confirmer la vente de "${v.marque} ${v.modele}" ?`)) return;
+    try { await api.patch(`/vehicles/${v.id}/`, { statut: 'vendu' }); setVehicles(prev => prev.map(x => x.id === v.id ? { ...x, statut: 'vendu' } : x)); }
+    catch { alert('Erreur lors de la confirmation de vente'); }
   };
 
   const handleDelete = async (id) => {
@@ -264,6 +254,7 @@ const Vehicles = () => {
 
   return (
     <div>
+      {/* ── Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h1 className="page-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Car size={22} color={NAVY} /> Gestion des Véhicules
@@ -275,11 +266,12 @@ const Vehicles = () => {
         )}
       </div>
 
+      {/* ── Stats cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '20px' }}>
         {[
           { label: 'Total',       value: totalVeh,    color: NAVY,      bg: '#EFF4FB', icon: <Car size={18} /> },
           { label: 'Disponibles', value: disponibles, color: '#16A34A', bg: '#DCFCE7', icon: <CheckCircle size={18} /> },
-          { label: 'Loués',       value: loues,       color: '#7C3AED', bg: '#F3EEFF', icon: <Car size={18} /> },
+          { label: 'Loués',       value: loues,       color: '#7C3AED', bg: '#F3EEFF', icon: <Key size={18} /> },
           { label: 'Alertes',     value: alerts,      color: '#DC2626', bg: '#FEE2E2', icon: <AlertTriangle size={18} /> },
         ].map(s => (
           <div key={s.label} className="card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 18px' }}>
@@ -294,15 +286,21 @@ const Vehicles = () => {
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '14px' }}>
+      {/* ✅ Filtres catégories — emojis distinctifs */}
+      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
         {CATEGORIES.map(cat => {
-          const count = cat.key === 'all' ? vehicles.length : vehicles.filter(v => classifyVehicle(v) === cat.key).length;
+          const count  = cat.key === 'all' ? vehicles.length : vehicles.filter(v => classifyVehicle(v) === cat.key).length;
           const active = catFilter === cat.key;
           return (
             <button key={cat.key} onClick={() => handleCatFilt(cat.key)}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 14px', borderRadius: '20px', border: active ? 'none' : '1.5px solid #DDE3ED', background: active ? NAVY : 'white', color: active ? 'white' : '#64748B', fontWeight: active ? '700' : '500', fontSize: '12.5px', cursor: 'pointer', transition: 'all 0.14s' }}>
-              <span style={{marginRight:'4px'}}>{cat.icon}</span>{cat.label}
-              <span style={{ background: active ? 'rgba(255,255,255,0.2)' : '#F1F5F9', color: active ? 'white' : '#64748B', padding: '1px 7px', borderRadius: '10px', fontSize: '11px', fontWeight: '700' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: '20px',
+                border: active ? 'none' : '1.5px solid #DDE3ED',
+                background: active ? NAVY : 'white',
+                color: active ? 'white' : '#64748B',
+                fontWeight: active ? '700' : '500', fontSize: '12.5px', cursor: 'pointer', transition: 'all 0.14s' }}>
+              <span style={{ fontSize: '14px', lineHeight: 1 }}>{cat.icon}</span>
+              {cat.label}
+              <span style={{ background: active ? 'rgba(255,255,255,0.22)' : '#F1F5F9', color: active ? 'white' : '#64748B', padding: '1px 7px', borderRadius: '10px', fontSize: '11px', fontWeight: '700' }}>
                 {count}
               </span>
             </button>
@@ -310,36 +308,46 @@ const Vehicles = () => {
         })}
       </div>
 
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      {/* ── Search */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
           <Search size={15} color="#94A3B8" style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
           <input value={search} onChange={e => handleSearch(e.target.value)}
             placeholder="Rechercher par marque, modèle, immatriculation..."
             style={{ paddingLeft: '34px', width: '100%' }} />
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {[
-            { value: 'all',          label: 'Tous',         color: NAVY,      bg: '#EFF4FB' },
-            { value: 'disponible',   label: '✅ Disponible', color: '#16A34A', bg: '#DCFCE7' },
-            { value: 'loué',         label: '🚗 Loué',       color: '#1B3A6B', bg: '#DBEAFE' },
-            { value: 'maintenance',  label: '🔧 Maintenance',color: '#D97706', bg: '#FEF9C3' },
-            { value: 'a_vendre',     label: '🔴 À vendre',   color: '#E8A020', bg: '#FEF3DC' },
-            { value: 'vendu',        label: '✅ Vendu',       color: '#64748B', bg: '#F1F5F9' },
-            { value: 'hors service', label: '❌ Hors service',color: '#DC2626', bg: '#FEE2E2' },
-          ].map(s => (
+      </div>
+
+      {/* ✅ Filtres statuts — icônes Lucide professionnelles */}
+      <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', marginBottom: '16px' }}>
+        {STATUT_FILTERS.map(s => {
+          const count  = s.value === 'all' ? null : vehicles.filter(v => norm(v.statut) === norm(s.value)).length;
+          const active = statFilter === s.value;
+          return (
             <button key={s.value} onClick={() => handleStatFilt(s.value)}
-              style={{ padding: '7px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '12px', background: statFilter === s.value ? s.color : s.bg, color: statFilter === s.value ? 'white' : s.color, transition: 'all 0.15s', boxShadow: statFilter === s.value ? `0 2px 8px ${s.color}40` : 'none' }}>
+              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 14px', borderRadius: '20px',
+                border: active ? 'none' : '1.5px solid #DDE3ED',
+                background: active ? s.color : s.bg,
+                color: active ? 'white' : s.color,
+                fontWeight: '700', fontSize: '12px', cursor: 'pointer',
+                transition: 'all 0.15s',
+                boxShadow: active ? `0 2px 10px ${s.color}40` : 'none' }}>
+              {s.icon && <span style={{ display: 'flex', alignItems: 'center' }}>{s.icon}</span>}
               {s.label}
-              {s.value !== 'all' && (
-                <span style={{ marginLeft: '6px', fontWeight: '800' }}>
-                  ({vehicles.filter(v => (v.statut||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === (s.value||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')).length})
+              {count !== null && (
+                <span style={{
+                  background: active ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.08)',
+                  padding: '1px 7px', borderRadius: '10px', fontSize: '11px', fontWeight: '800'
+                }}>
+                  {count}
                 </span>
               )}
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
+      {/* ── Compteur */}
       <div style={{ fontSize: '12.5px', color: '#64748B', marginBottom: '14px' }}>
         <strong style={{ color: '#1A2535' }}>{filtered.length}</strong> véhicule{filtered.length !== 1 ? 's' : ''} trouvé{filtered.length !== 1 ? 's' : ''}
         {(search || statFilter !== 'all' || catFilter !== 'all') && (
@@ -350,6 +358,7 @@ const Vehicles = () => {
         )}
       </div>
 
+      {/* ── Grid véhicules */}
       {paginated.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
           <Car size={40} color="#DDE3ED" style={{ margin: '0 auto 12px' }} />
@@ -385,7 +394,7 @@ const Vehicles = () => {
                       </span>
                     )}
                     <span style={{ background: 'rgba(255,255,255,0.9)', color: '#64748B', padding: '3px 8px', borderRadius: '10px', fontSize: '10.5px', fontWeight: '600' }}>
-                      {catInfo?.label}
+                      {catInfo?.icon} {catInfo?.label}
                     </span>
                   </div>
                   {alert && (
@@ -413,9 +422,7 @@ const Vehicles = () => {
                       <div style={{ fontWeight: '800', fontSize: '15px', color: '#1A2535' }}>{v.marque} {v.modele}</div>
                       <div style={{ color: NAVY, fontWeight: '700', fontSize: '12px', marginTop: '1px' }}>{v.immatriculation} · {v.annee}</div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '16px', fontWeight: '800', color: '#16A34A' }}>{parseFloat(v.prix_journalier).toFixed(0)} DT/j</div>
-                    </div>
+                    <div style={{ fontSize: '16px', fontWeight: '800', color: '#16A34A' }}>{parseFloat(v.prix_journalier).toFixed(0)} DT/j</div>
                   </div>
 
                   <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '10px' }}>
@@ -455,9 +462,7 @@ const Vehicles = () => {
                     ))}
                   </div>
 
-                  {/* ── Action buttons */}
                   <div style={{ display: 'flex', gap: '7px', flexDirection: 'column' }}>
-                    {/* Row 1: Modifier + Rapport */}
                     <div style={{ display: 'flex', gap: '7px' }}>
                       <button onClick={() => openEdit(v)}
                         style={{ flex: 1, padding: '8px', background: NAVY, color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
@@ -474,22 +479,21 @@ const Vehicles = () => {
                         </button>
                       )}
                     </div>
-                    {/* Row 2: Vente buttons — shown only when relevant */}
                     {isAdmin && v.statut !== 'vendu' && getAge(v.date_acquisition) >= 3.5 && v.statut !== 'a_vendre' && (
                       <button onClick={() => handleMettreEnVente(v)}
                         style={{ width: '100%', padding: '8px', background: '#FEF3DC', color: '#E8A020', border: '1.5px solid #FCD34D', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                        🔴 Mettre en vente
+                        <Tag size={13} /> Mettre en vente
                       </button>
                     )}
                     {isAdmin && v.statut === 'a_vendre' && (
                       <button onClick={() => handleMarquerVendu(v)}
                         style={{ width: '100%', padding: '8px', background: '#DCFCE7', color: '#16A34A', border: '1.5px solid #86EFAC', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                        ✅ Marquer comme vendu
+                        <CheckCircle size={13} /> Marquer comme vendu
                       </button>
                     )}
                     {v.statut === 'vendu' && (
                       <div style={{ width: '100%', padding: '8px', background: '#F1F5F9', color: '#64748B', borderRadius: '8px', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                        ✅ Véhicule vendu
+                        <Shield size={13} /> Véhicule vendu
                       </div>
                     )}
                   </div>
@@ -504,17 +508,18 @@ const Vehicles = () => {
         <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={filtered.length} itemsPerPage={ITEMS_PER_PAGE} />
       </div>
 
+      {/* ── Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px' }}>
             <h2>{editingVeh ? <><Pencil size={17} /> Modifier le véhicule</> : <><Plus size={17} /> Ajouter un véhicule</>}</h2>
             <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', background: '#F8FAFC', borderRadius: '10px', padding: '4px' }}>
               {[
-                { key:'infos',    label:'Infos' },
-                { key:'tech',     label:'Technique' },
-                { key:'tarifs',   label:'Tarifs' },
-                { key:'assurance',label:'Assurance' },
-                { key:'photo',    label:'Photo' },
+                { key:'infos',     label:'Infos' },
+                { key:'tech',      label:'Technique' },
+                { key:'tarifs',    label:'Tarifs' },
+                { key:'assurance', label:'Assurance' },
+                { key:'photo',     label:'Photo' },
               ].map(t => (
                 <button key={t.key} onClick={() => setActiveTab(t.key)}
                   style={{ flex: 1, padding: '7px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12.5px', background: activeTab === t.key ? NAVY : 'transparent', color: activeTab === t.key ? 'white' : '#64748B', transition: 'all 0.14s' }}>
@@ -535,8 +540,8 @@ const Vehicles = () => {
                       <option value="disponible">Disponible</option>
                       <option value="loué">Loué</option>
                       <option value="maintenance">Maintenance</option>
-                      <option value="a_vendre">🔴 À vendre</option>
-                      <option value="vendu">✅ Vendu</option>
+                      <option value="a_vendre">À vendre</option>
+                      <option value="vendu">Vendu</option>
                       <option value="hors service">Hors service</option>
                     </select>
                   </div>
@@ -568,8 +573,8 @@ const Vehicles = () => {
               )}
               {activeTab === 'tarifs' && (
                 <div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
-                    <div className="form-group" style={{gridColumn:'1/-1'}}>
+                  <div style={{ marginBottom: '14px' }}>
+                    <div className="form-group">
                       <label>Prix journalier de base (DT) *</label>
                       <input type="number" value={form.prix_journalier} onChange={e=>setForm({...form,prix_journalier:e.target.value})} required step="0.01" />
                     </div>
