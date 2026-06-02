@@ -108,7 +108,6 @@ const PaymentBar = ({ solde, reservation }) => {
   );
 };
 
-// ── Accident notification modal — 3 steps + email Mailjet + comparaison
 const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConfirm }) => {
   const [selectedVehicle, setSelectedVehicle]     = useState(null);
   const [newDateFin, setNewDateFin]                = useState(reservation.date_fin);
@@ -142,8 +141,6 @@ const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConf
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '640px' }}>
-
-        {/* Step indicator */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '20px' }}>
           {['Notification client', 'Choix véhicule', 'Confirmation'].map((s, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
@@ -159,7 +156,6 @@ const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConf
           ))}
         </div>
 
-        {/* ── Step 1: Notify */}
         {step === 1 && (
           <>
             <h2 style={{ color: RED, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
@@ -211,14 +207,11 @@ const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConf
           </>
         )}
 
-        {/* ── Step 2: Choose replacement */}
         {step === 2 && (
           <>
             <h2 style={{ color: NAVY, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
               <Car size={20} /> Choisir un véhicule de remplacement
             </h2>
-
-            {/* Date modification */}
             <div style={{ background: '#F8FAFC', border: '1px solid #DDE3ED', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
               <div style={{ fontWeight: '700', color: NAVY, fontSize: '13px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <CalendarDays size={14} /> Modifier la date de fin (optionnel)
@@ -241,8 +234,6 @@ const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConf
                 </div>
               </div>
             </div>
-
-            {/* Available vehicles list */}
             {loading ? (
               <div style={{ textAlign: 'center', padding: '30px', color: '#64748B' }}>Recherche de véhicules similaires...</div>
             ) : availableVehicles.length === 0 ? (
@@ -284,23 +275,18 @@ const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConf
                 </div>
               </div>
             )}
-
-            {/* Extra cost */}
             {extraDays > 0 && selectedVehicle && (
               <div style={{ background: '#FEF3DC', border: '1px solid #E8A020', borderRadius: '8px', padding: '10px 14px', marginTop: '10px', fontSize: '13px', color: '#92580A', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <CalendarCheck size={15} />
                 Prolongation de {extraDays} jour(s) → coût supplémentaire: <strong>{extraCost} DT</strong>
               </div>
             )}
-
-            {/* ── Comparison table: ancien vs nouveau (like Flutter comparator) */}
             {selectedVehicle && vehicle && (
               <div style={{ background: '#F8FAFC', borderRadius: '12px', padding: '14px', marginTop: '12px', border: '1px solid #DDE3ED' }}>
                 <div style={{ fontWeight: '700', color: NAVY, fontSize: '12px', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Car size={13} /> Comparaison véhicules
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 32px 1fr', gap: '8px', alignItems: 'center' }}>
-                  {/* Ancien */}
                   <div style={{ background: '#FEE2E2', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
                     <div style={{ fontSize: '10px', color: RED, fontWeight: '800', marginBottom: '6px', textTransform: 'uppercase' }}>Ancien véhicule</div>
                     <img src={getCarPhoto(vehicle)} alt="" style={{ width: '90px', height: '60px', objectFit: 'cover', borderRadius: '8px', marginBottom: '8px' }} onError={e => { e.target.src = CAR_PHOTOS.default; }} />
@@ -308,9 +294,7 @@ const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConf
                     <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '2px' }}>{vehicle.immatriculation}</div>
                     <div style={{ fontWeight: '800', color: RED, fontSize: '15px', marginTop: '6px' }}>{vehicle.prix_journalier} DT/j</div>
                   </div>
-                  {/* Arrow */}
                   <div style={{ textAlign: 'center', fontSize: '20px', color: '#94A3B8' }}>→</div>
-                  {/* Nouveau */}
                   <div style={{ background: '#DCFCE7', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
                     <div style={{ fontSize: '10px', color: GREEN, fontWeight: '800', marginBottom: '6px', textTransform: 'uppercase' }}>Nouveau véhicule</div>
                     <img src={getCarPhoto(selectedVehicle)} alt="" style={{ width: '90px', height: '60px', objectFit: 'cover', borderRadius: '8px', marginBottom: '8px' }} onError={e => { e.target.src = CAR_PHOTOS.default; }} />
@@ -319,7 +303,6 @@ const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConf
                     <div style={{ fontWeight: '800', color: GREEN, fontSize: '15px', marginTop: '6px' }}>{selectedVehicle.prix_journalier} DT/j</div>
                   </div>
                 </div>
-                {/* Specs rows */}
                 {[
                   { label: 'Places',    old: `${vehicle.nombre_places} pl`,    nw: `${selectedVehicle.nombre_places} pl` },
                   { label: 'Carburant', old: vehicle.carburant || '—',          nw: selectedVehicle.carburant || '—' },
@@ -333,7 +316,6 @@ const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConf
                 ))}
               </div>
             )}
-
             <div className="modal-actions">
               <button className="btn btn-outline" onClick={() => setStep(1)}>Retour</button>
               <button className="btn btn-primary" disabled={!selectedVehicle} onClick={() => setStep(3)}
@@ -344,13 +326,11 @@ const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConf
           </>
         )}
 
-        {/* ── Step 3: Confirm + email */}
         {step === 3 && selectedVehicle && (
           <>
             <h2 style={{ color: GREEN, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
               <CheckCircle size={20} /> Confirmer le remplacement
             </h2>
-
             <div style={{ background: '#F8FAFC', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
               {[
                 { label: 'Ancien véhicule',  value: `${vehicle?.marque} ${vehicle?.modele} (${vehicle?.immatriculation})`, color: RED },
@@ -366,8 +346,6 @@ const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConf
                 </div>
               ))}
             </div>
-
-            {/* Email notification info */}
             {client?.email && (
               <div style={{ background: '#EFF4FB', border: '1px solid #BFDBFE', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Send size={16} color={NAVY} />
@@ -376,7 +354,6 @@ const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConf
                 </div>
               </div>
             )}
-
             <div className="modal-actions">
               <button className="btn btn-outline" onClick={() => setStep(2)}>Retour</button>
               <button className="btn btn-primary" style={{ background: GREEN, display: 'flex', alignItems: 'center', gap: '6px' }}
@@ -391,7 +368,6 @@ const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConf
   );
 };
 
-// ── Mobile Notification Panel
 const MobileNotifPanel = ({ pendingReservations, clients, vehicles, onAction }) => {
   const [processing, setProcessing] = useState({});
   if (pendingReservations.length === 0) return null;
@@ -464,18 +440,19 @@ const MobileNotifPanel = ({ pendingReservations, clients, vehicles, onAction }) 
   );
 };
 
-// ── Main component
 const ReservationsList = () => {
-  const [reservations,  setReservations]  = useState([]);
-  const [clients,       setClients]       = useState([]);
-  const [vehicles,      setVehicles]      = useState([]);
-  const [contracts,     setContracts]     = useState([]);
-  const [soldes,        setSoldes]        = useState({});
-  const [search,        setSearch]        = useState('');
-  const [filterStatut,  setFilterStatut]  = useState('');
-  const [refreshing,    setRefreshing]    = useState(false);
-  const [currentPage,   setCurrentPage]   = useState(1);
-  const [accidentModal, setAccidentModal] = useState(null);
+  const [reservations,   setReservations]   = useState([]);
+  const [clients,        setClients]        = useState([]);
+  const [vehicles,       setVehicles]       = useState([]);
+  const [contracts,      setContracts]      = useState([]);
+  const [soldes,         setSoldes]         = useState({});
+  const [search,         setSearch]         = useState('');
+  const [filterStatut,   setFilterStatut]   = useState('');
+  // ✅ NEW: filtre accident
+  const [filterAccident, setFilterAccident] = useState(false);
+  const [refreshing,     setRefreshing]     = useState(false);
+  const [currentPage,    setCurrentPage]    = useState(1);
+  const [accidentModal,  setAccidentModal]  = useState(null);
 
   const fetchSoldes = async (list) => {
     const map = {};
@@ -520,32 +497,35 @@ const ReservationsList = () => {
   const getVehicle  = id => vehicles.find(v => v.id === id);
   const getContract = id => contracts.find(c => c.reservation === id);
 
+  // ✅ Filtre avec accident
   const filtered = reservations
     .filter(r => {
       const cl = getClient(r.client);
       const ve = getVehicle(r.vehicle);
       const str = `${cl?.nom} ${cl?.prenom} ${cl?.cin} ${ve?.marque} ${ve?.modele} ${ve?.immatriculation}`.toLowerCase();
-      return str.includes(search.toLowerCase()) && (filterStatut ? r.statut === filterStatut : true);
+      const matchSearch   = str.includes(search.toLowerCase());
+      const matchStatut   = filterStatut ? r.statut === filterStatut : true;
+      const matchAccident = filterAccident ? r.a_accident === true : true;
+      return matchSearch && matchStatut && matchAccident;
     })
     .sort((a, b) => new Date(b.date_debut) - new Date(a.date_debut));
 
   const totalRestant  = Object.values(soldes).reduce((s, x) => s + Math.max(0, x.montant_restant || 0), 0);
   const totalEncaisse = Object.values(soldes).reduce((s, x) => s + (x.total_paye || 0), 0);
   const nbSoldes      = Object.values(soldes).filter(x => x.montant_restant <= 0).length;
+  const nbAccidents   = reservations.filter(r => r.a_accident).length;
   const totalPages    = Math.ceil(filtered.length / ITEMS_PER_PAGE);
   const paginated     = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const handleSearch = v => { setSearch(v); setCurrentPage(1); };
   const handleFilter = v => { setFilterStatut(v); setCurrentPage(1); };
 
-  // ── ✅ PATCH 1: handleConfirmReplacement with Mailjet email
   const handleConfirmReplacement = async (newVehicle, newDateFin, reservation, client) => {
     try {
       const days     = Math.max(1, Math.round((new Date(newDateFin) - new Date(reservation.date_debut)) / 86400000));
       const newTotal = (days * parseFloat(newVehicle.prix_journalier)).toFixed(2);
       const oldVeh   = getVehicle(reservation.vehicle);
 
-      // 1. Update reservation
       await api.patch(`/reservations/${reservation.id}/`, {
         vehicle:             newVehicle.id,
         date_fin:            newDateFin,
@@ -554,7 +534,6 @@ const ReservationsList = () => {
         montant_total:       newTotal,
       });
 
-      // 2. Send Mailjet email to client
       if (client?.email) {
         try {
           await api.post('/vehicles/send-replacement-email/', {
@@ -593,12 +572,15 @@ const ReservationsList = () => {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '22px' }}>
+      {/* ── Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '14px', marginBottom: '22px' }}>
         {[
           { label: 'Total réservations', value: reservations.length,                color: NAVY,   bg: '#EFF4FB', icon: <List size={18} /> },
           { label: 'Total encaissé',     value: `${totalEncaisse.toFixed(2)} DT`,   color: GREEN,  bg: '#DCFCE7', icon: <Banknote size={18} /> },
           { label: 'Total restant',      value: `${totalRestant.toFixed(2)} DT`,    color: RED,    bg: '#FEE2E2', icon: <Clock size={18} /> },
           { label: 'Soldées',            value: `${nbSoldes}/${reservations.length}`,color: PURPLE, bg: '#F3EEFF', icon: <CheckCircle size={18} /> },
+          // ✅ NEW: stat accidents
+          { label: 'Accidents',          value: nbAccidents,                         color: RED,    bg: '#FEE2E2', icon: <AlertTriangle size={18} /> },
         ].map(s => (
           <div key={s.label} className="card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px' }}>
             <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: s.bg, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{s.icon}</div>
@@ -617,6 +599,7 @@ const ReservationsList = () => {
         onAction={handleReservationAction}
       />
 
+      {/* ── Search + Filters */}
       <div className="card" style={{ marginBottom: '16px', padding: '14px 18px' }}>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
@@ -633,12 +616,32 @@ const ReservationsList = () => {
               <option value="annulée">Annulée</option>
             </select>
           </div>
+          {/* ✅ NEW: Bouton filtre accident */}
+          <button
+            onClick={() => { setFilterAccident(!filterAccident); setCurrentPage(1); }}
+            style={{
+              padding: '8px 14px',
+              background: filterAccident ? '#FEE2E2' : 'white',
+              color: filterAccident ? RED : '#64748B',
+              border: `1.5px solid ${filterAccident ? RED : '#DDE3ED'}`,
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '700',
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}>
+            <AlertTriangle size={14} />
+            {filterAccident ? `⚠️ Accidents (${nbAccidents})` : 'Avec accident'}
+          </button>
           <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '600' }}>
             <strong style={{ color: '#1A2535' }}>{filtered.length}</strong> résultat(s)
           </div>
         </div>
       </div>
 
+      {/* ── List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         {paginated.map(r => {
           const client   = getClient(r.client);
@@ -648,7 +651,11 @@ const ReservationsList = () => {
           const days     = Math.max(1, Math.round((new Date(r.date_fin) - new Date(r.date_debut)) / 86400000));
           const statut   = statutConfig[r.statut] || { bg: '#F1F5F9', color: '#64748B', label: r.statut, icon: null };
           const isSolde  = solde && solde.montant_restant <= 0;
-          const hasAccidentNoReplacement = r.a_accident && !r.vehicule_remplace;
+
+          // ✅ FIX: bouton remplacement seulement si résa future ET non soldée
+          const today = new Date(); today.setHours(0,0,0,0);
+          const isReservationFuture = new Date(r.date_debut) >= today;
+          const hasAccidentNoReplacement = r.a_accident && !r.vehicule_remplace && isReservationFuture && !isSolde;
 
           return (
             <div key={r.id} style={{ background: 'white', borderRadius: '14px', overflow: 'hidden',
