@@ -526,12 +526,16 @@ const ReservationsList = () => {
       const newTotal = (days * parseFloat(newVehicle.prix_journalier)).toFixed(2);
       const oldVeh   = getVehicle(reservation.vehicle);
 
+      // ✅ Recalcul acompte = 10% du nouveau total
+      const newAcompte = (parseFloat(newTotal) * 0.10).toFixed(2);
+
       await api.patch(`/reservations/${reservation.id}/`, {
         vehicle:             newVehicle.id,
         date_fin:            newDateFin,
         vehicule_remplace:   reservation.vehicle,
         raison_remplacement: 'Accident — véhicule indisponible',
         montant_total:       newTotal,
+        acompte:             newAcompte,
       });
 
       if (client?.email) {
