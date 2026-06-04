@@ -12,18 +12,40 @@ const AMBER = '#E8A020';
 const GREEN = '#16A34A';
 const RED   = '#DC2626';
 
-const CAR_PHOTOS = {
-  renault: 'https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=300&q=70',
-  peugeot: 'https://images.unsplash.com/photo-1626668893632-6f3a4466d22f?w=300&q=70',
-  volkswagen: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?w=300&q=70',
-  toyota: 'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=300&q=70',
-  hyundai: 'https://images.unsplash.com/photo-1629897048514-3dd7414fe72a?w=300&q=70',
-  dacia: 'https://images.unsplash.com/photo-1550355291-bbee04a92027?w=300&q=70',
-  kia: 'https://images.unsplash.com/photo-1617788138017-80ad40651399?w=300&q=70',
-  default: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=300&q=70',
+// ✅ Photos par immatriculation
+const IMMAT_PHOTOS = {
+  '240TN5082': 'https://i.ibb.co/FZmVWK6/vec1.jpg',
+  '259TN5651': 'https://i.ibb.co/F4SbDBMM/vec2.jpg',
+  '243TN1422': 'https://i.ibb.co/gbw2JtTH/vec3.jpg',
+  '236TN5648': 'https://i.ibb.co/0RJ31jBB/vec4.jpg',
+  '234TN2126': 'https://i.ibb.co/prkyKtjv/vec5.jpg',
+  '244TN7005': 'https://i.ibb.co/P81vS80/vec6.jpg',
+  '251TN1694': 'https://i.ibb.co/5WBKGTGL/vec7.jpg',
+  '252TN3310': 'https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=400&q=80',
+  '253TN4421': 'https://i.ibb.co/jvRzYcDB/vec9.png',
+  '254TN6632': 'https://i.ibb.co/hxvysSY4/vec10.png',
+  '255TN7743': 'https://i.ibb.co/dsfz2VnP/vec11.png',
+  '256TN8854': 'https://i.ibb.co/35ccmkFY/vec12.jpg',
+  '257TN1301': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155233/vec13_jwhixy.jpg',
+  '258TN1402': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155237/vec14_emprhi.jpg',
+  '259TN1503': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155235/vec15_y7lazd.jpg',
+  '260TN1604': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155234/vec16_pkydhf.jpg',
+  '261TN1705': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155234/vec17_z2iw32.jpg',
+  '262TN1806': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155234/vec18_byuiqk.jpg',
+  '263TN1907': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155235/vec19_g9yvnw.jpg',
+  '264TN2008': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155235/vec20_kvsoqj.jpg',
+  '265TN2109': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155235/vec21_bjkcyt.jpg',
+  '266TN2210': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155236/vec22_gkpzax.jpg',
 };
-const getPhoto = (v) =>
-  v?.photo ? `http://127.0.0.1:8000${v.photo}` : (CAR_PHOTOS[(v?.marque||'').toLowerCase()] || CAR_PHOTOS.default);
+
+const DEFAULT_PHOTO = 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=300&q=70';
+
+// ✅ Priorité : photo Django → IMMAT_PHOTOS par immatriculation → défaut
+const getPhoto = (v) => {
+  if (!v) return DEFAULT_PHOTO;
+  if (v.photo) return `https://web-production-e6e97.up.railway.app${v.photo}`;
+  return IMMAT_PHOTOS[v.immatriculation] || DEFAULT_PHOTO;
+};
 
 const Confirmations = () => {
   const [reservations, setReservations] = useState([]);
@@ -31,7 +53,7 @@ const Confirmations = () => {
   const [vehicles,     setVehicles]     = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [processing,   setProcessing]   = useState({});
-  const [filter,       setFilter]       = useState('all'); // all | reservation | rdv
+  const [filter,       setFilter]       = useState('all');
   const [lastRefresh,  setLastRefresh]  = useState(new Date());
 
   const fetchAll = useCallback(async () => {
@@ -78,7 +100,6 @@ const Confirmations = () => {
 
   const getClient  = id => clients.find(c => c.id === id);
   const getVehicle = id => vehicles.find(v => v.id === id);
-
   const days = (d1, d2) => Math.max(1, Math.round((new Date(d2) - new Date(d1)) / 86400000));
 
   if (loading) return (
@@ -117,9 +138,9 @@ const Confirmations = () => {
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginBottom: '22px' }}>
         {[
-          { label: 'En attente total',    value: pending.length,       color: AMBER,  bg: '#FEF3DC', icon: <Clock size={18} />,        action: () => setFilter('all') },
-          { label: 'Réservations mobile', value: directPending.length, color: NAVY,   bg: '#EFF4FB', icon: <Smartphone size={18} />,    action: () => setFilter('reservation') },
-          { label: 'RDV Espèces',         value: rdvPending.length,    color: '#7C3AED', bg: '#F3EEFF', icon: <CalendarDays size={18} />, action: () => setFilter('rdv') },
+          { label: 'En attente total',    value: pending.length,       color: AMBER,     bg: '#FEF3DC', icon: <Clock size={18} />,        action: () => setFilter('all') },
+          { label: 'Réservations mobile', value: directPending.length, color: NAVY,      bg: '#EFF4FB', icon: <Smartphone size={18} />,    action: () => setFilter('reservation') },
+          { label: 'RDV Espèces',         value: rdvPending.length,    color: '#7C3AED', bg: '#F3EEFF', icon: <CalendarDays size={18} />,  action: () => setFilter('rdv') },
         ].map(s => (
           <div key={s.label} onClick={s.action}
             className="card"
@@ -266,9 +287,12 @@ const Confirmations = () => {
                   {vehicle ? (
                     <>
                       <div style={{ borderRadius: '8px', overflow: 'hidden', height: '70px', marginBottom: '8px' }}>
-                        <img src={getPhoto(vehicle)} alt={vehicle.marque}
+                        <img
+                          src={getPhoto(vehicle)}
+                          alt={`${vehicle.marque} ${vehicle.modele}`}
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          onError={e => { e.target.src = CAR_PHOTOS.default; }} />
+                          onError={e => { e.target.src = DEFAULT_PHOTO; }}
+                        />
                       </div>
                       <div style={{ fontWeight: '800', fontSize: '14px', color: '#1A2535' }}>{vehicle.marque} {vehicle.modele}</div>
                       <div style={{ fontSize: '12px', color: NAVY, fontWeight: '600', marginTop: '2px' }}>{vehicle.immatriculation}</div>
