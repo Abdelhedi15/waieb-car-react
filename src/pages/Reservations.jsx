@@ -18,7 +18,6 @@ const PURPLE = '#7C3AED';
 
 const VEHICLES_PER_PAGE = 6;
 
-// ── Real car photos by brand
 const CAR_PHOTOS = {
   renault:    'https://images.unsplash.com/photo-1609521263047-f8f205293f24?w=400&q=80',
   peugeot:    'https://images.unsplash.com/photo-1626668893632-6f3a4466d22f?w=400&q=80',
@@ -43,7 +42,6 @@ const getCarPhoto = (vehicle) => {
   return CAR_PHOTOS[(vehicle?.marque||'').toLowerCase()] || CAR_PHOTOS.default;
 };
 
-// ── Season logic
 const getPrixSaison = (vehicle, dateDebut) => {
   if (!vehicle || !dateDebut) return 0;
   const mois = new Date(dateDebut).getMonth() + 1;
@@ -62,12 +60,12 @@ const getSaisonInfo = (dateDebut) => {
   return                            { label: 'Basse saison',                   color: '#166534', bg: '#DCFCE7', pct: 'tarif normal' };
 };
 
-// ── Dynamic acompte rules
+// ✅ Dynamic acompte rules — CORRECTED to match Flutter
 const ACOMPTE_RULES = [
-  { min: 1,  max: 3,   pct: 15, label: '1–3 jours' },
-  { min: 4,  max: 7,   pct: 20, label: '4–7 jours' },
-  { min: 8,  max: 14,  pct: 25, label: '8–14 jours' },
-  { min: 15, max: 999, pct: 30, label: '15+ jours' },
+  { min: 1,  max: 3,   pct: 20, label: '1–3 jours' },
+  { min: 4,  max: 7,   pct: 30, label: '4–7 jours' },
+  { min: 8,  max: 14,  pct: 40, label: '8–14 jours' },
+  { min: 15, max: 999, pct: 50, label: '15+ jours' },
 ];
 const getAcompteRule = (days) =>
   ACOMPTE_RULES.find(r => days >= r.min && days <= r.max) || ACOMPTE_RULES[ACOMPTE_RULES.length - 1];
@@ -84,7 +82,6 @@ const EMPTY_FORM = {
   vehicule_remplace: '', raison_remplacement: '',
 };
 
-// ── Mini pagination component (inline, no external import needed)
 const MiniPagination = ({ currentPage, totalPages, onPageChange, totalItems, perPage }) => {
   if (totalPages <= 1) return null;
   const from = (currentPage - 1) * perPage + 1;
@@ -101,7 +98,7 @@ const MiniPagination = ({ currentPage, totalPages, onPageChange, totalItems, per
         </button>
         {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
           <button key={p} onClick={() => onPageChange(p)}
-            style={{ width: '32px', height: '32px', border: 'none', borderRadius: '8px', background: p === currentPage ? NAVY : 'white', border: p === currentPage ? 'none' : '1.5px solid #DDE3ED', color: p === currentPage ? 'white' : '#1A2535', fontWeight: p === currentPage ? '800' : '500', fontSize: '13px', cursor: 'pointer' }}>
+            style={{ width: '32px', height: '32px', borderRadius: '8px', background: p === currentPage ? NAVY : 'white', border: p === currentPage ? 'none' : '1.5px solid #DDE3ED', color: p === currentPage ? 'white' : '#1A2535', fontWeight: p === currentPage ? '800' : '500', fontSize: '13px', cursor: 'pointer' }}>
             {p}
           </button>
         ))}
@@ -131,8 +128,6 @@ const Reservations = () => {
   const [loading, setLoading]                     = useState(false);
   const [calendarDates, setCalendarDates]         = useState([new Date(), new Date()]);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
-
-  // ── Vehicles grid state
   const [vehiclePage,   setVehiclePage]   = useState(1);
   const [vehicleSearch, setVehicleSearch] = useState('');
   const [vehicleSort,   setVehicleSort]   = useState('prix_asc');
@@ -152,7 +147,6 @@ const Reservations = () => {
     } catch (err) { console.error(err); }
   };
 
-  // ── Notifications
   const getUpcomingReservations = () => {
     const today = new Date(); today.setHours(0,0,0,0);
     return reservations
@@ -168,7 +162,6 @@ const Reservations = () => {
   const notifColor = (d) => d === 0 ? RED : d <= 2 ? '#D97706' : NAVY;
   const notifLabel = (d) => d === 0 ? "Aujourd'hui" : d === 1 ? 'Demain' : `Dans ${d} jours`;
 
-  // ── Calendar
   const bookedDates = (() => {
     const dates = [];
     reservations.forEach(r => {
@@ -196,7 +189,6 @@ const Reservations = () => {
     finally { setCheckingAvailability(false); }
   };
 
-  // ── Filter + sort + paginate available vehicles
   const filteredVehicles = availableVehicles
     .filter(v => {
       const q = vehicleSearch.toLowerCase();
@@ -302,7 +294,6 @@ const Reservations = () => {
     }
   };
 
-  // ── Form computed values
   const selectedVehicle = vehicles.find(v => v.id === parseInt(form.vehicle));
   const formDays        = calcDays(form.date_debut, form.date_fin);
   const activeRule      = getAcompteRule(formDays || 1);
@@ -383,9 +374,8 @@ const Reservations = () => {
         ))}
       </div>
 
-      {/* ── Calendar + Availability section */}
+      {/* ── Calendar + Availability */}
       <div className="card" style={{ marginBottom: '24px' }}>
-        {/* Section header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <h2 style={{ color: NAVY, fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', margin: 0 }}>
             <CalendarDays size={18} color={AMBER} /> Vérifier la disponibilité des véhicules
@@ -397,24 +387,14 @@ const Reservations = () => {
           )}
         </div>
 
-        {/* Two columns: calendar left, results right */}
         <div style={{ display: 'grid', gridTemplateColumns: showCalendar ? '300px 1fr' : '300px', gap: '28px', alignItems: 'flex-start' }}>
-
-          {/* ── Left: calendar */}
           <div>
             <div style={{ fontSize: '12px', color: '#64748B', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#FCA5A5', borderRadius: '50%' }}></span>
               Jours réservés
             </div>
-            <Calendar
-              selectRange={true}
-              onChange={setCalendarDates}
-              value={calendarDates}
-              tileClassName={tileClassName}
-              locale="fr-FR"
-            />
+            <Calendar selectRange={true} onChange={setCalendarDates} value={calendarDates} tileClassName={tileClassName} locale="fr-FR" />
 
-            {/* Selected period summary */}
             {calendarDates[0] && calendarDates[1] && (
               <div style={{ marginTop: '12px', background: '#EFF4FB', borderRadius: '10px', padding: '10px 14px', fontSize: '13px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -425,7 +405,6 @@ const Reservations = () => {
                 <div style={{ textAlign: 'center', fontWeight: '800', color: NAVY, marginTop: '4px' }}>
                   {calcDays(calendarDates[0].toISOString().split('T')[0], calendarDates[1].toISOString().split('T')[0])} jour(s)
                 </div>
-                {/* Season badge */}
                 {(() => {
                   const s = getSaisonInfo(calendarDates[0].toISOString().split('T')[0]);
                   return s ? (
@@ -443,24 +422,18 @@ const Reservations = () => {
             </button>
           </div>
 
-          {/* ── Right: available vehicles with search + sort + pagination */}
           {showCalendar && (
             <div>
-              {/* Subheader */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: GREEN, fontWeight: '700', fontSize: '13.5px' }}>
                   <CheckCircle size={15} /> Disponibles
                 </div>
-
-                {/* Search */}
                 <div style={{ position: 'relative', flex: 1, minWidth: '150px' }}>
                   <Search size={13} color="#94A3B8" style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                   <input value={vehicleSearch} onChange={e => { setVehicleSearch(e.target.value); setVehiclePage(1); }}
                     placeholder="Marque, modèle..."
                     style={{ paddingLeft: '28px', fontSize: '12.5px', padding: '7px 10px 7px 28px' }} />
                 </div>
-
-                {/* Sort */}
                 <div style={{ position: 'relative' }}>
                   <SlidersHorizontal size={12} color="#94A3B8" style={{ position: 'absolute', left: '9px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
                   <select value={vehicleSort} onChange={e => { setVehicleSort(e.target.value); setVehiclePage(1); }}
@@ -479,7 +452,6 @@ const Reservations = () => {
                 </div>
               ) : (
                 <>
-                  {/* Grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: '12px' }}>
                     {paginatedVehicles.map(v => {
                       const d1   = calendarDates[0].toISOString().split('T')[0];
@@ -488,52 +460,29 @@ const Reservations = () => {
                       const total = (days * prix).toFixed(2);
                       const mois  = calendarDates[0].getMonth() + 1;
                       const rule  = getAcompteRule(days);
-
                       return (
-                        <div key={v.id} style={{ background: 'white', border: `1.5px solid #DDE3ED`, borderRadius: '12px', overflow: 'hidden', transition: 'box-shadow 0.15s, border-color 0.15s' }}
+                        <div key={v.id} style={{ background: 'white', border: '1.5px solid #DDE3ED', borderRadius: '12px', overflow: 'hidden', transition: 'box-shadow 0.15s, border-color 0.15s' }}
                           onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 6px 20px rgba(27,58,107,0.12)'; e.currentTarget.style.borderColor = NAVY; }}
                           onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = '#DDE3ED'; }}>
-
-                          {/* Photo */}
                           <div style={{ height: '90px', overflow: 'hidden', position: 'relative' }}>
-                            <img src={getCarPhoto(v)} alt={v.marque}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                              onError={e => { e.target.src = CAR_PHOTOS.default; }} />
-                            {/* Season badge overlay */}
-                            {[7,8].includes(mois) && (
-                              <span style={{ position: 'absolute', top: '6px', right: '6px', fontSize: '10px', background: '#FEE2E2', color: RED, padding: '2px 6px', borderRadius: '5px', fontWeight: '700' }}>+50%</span>
-                            )}
-                            {[6,9].includes(mois) && (
-                              <span style={{ position: 'absolute', top: '6px', right: '6px', fontSize: '10px', background: '#FEF3DC', color: '#92580A', padding: '2px 6px', borderRadius: '5px', fontWeight: '700' }}>+25%</span>
-                            )}
+                            <img src={getCarPhoto(v)} alt={v.marque} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.src = CAR_PHOTOS.default; }} />
+                            {[7,8].includes(mois) && <span style={{ position: 'absolute', top: '6px', right: '6px', fontSize: '10px', background: '#FEE2E2', color: RED, padding: '2px 6px', borderRadius: '5px', fontWeight: '700' }}>+50%</span>}
+                            {[6,9].includes(mois) && <span style={{ position: 'absolute', top: '6px', right: '6px', fontSize: '10px', background: '#FEF3DC', color: '#92580A', padding: '2px 6px', borderRadius: '5px', fontWeight: '700' }}>+25%</span>}
                           </div>
-
-                          {/* Body */}
                           <div style={{ padding: '10px 12px' }}>
                             <div style={{ color: NAVY, fontWeight: '700', fontSize: '11px', marginBottom: '2px' }}>{v.immatriculation}</div>
                             <div style={{ fontWeight: '800', fontSize: '13.5px', color: '#1A2535', marginBottom: '6px' }}>{v.marque} {v.modele}</div>
-
-                            {/* Specs row */}
                             <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: '11px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                <Users size={11} /> {v.nombre_places} pl.
-                              </span>
-                              <span style={{ fontSize: '11px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                <Gauge size={11} /> {(v.kilometrage||0).toLocaleString()} km
-                              </span>
+                              <span style={{ fontSize: '11px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '3px' }}><Users size={11} /> {v.nombre_places} pl.</span>
+                              <span style={{ fontSize: '11px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '3px' }}><Gauge size={11} /> {(v.kilometrage||0).toLocaleString()} km</span>
                             </div>
-
-                            {/* Price */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                               <span style={{ color: GREEN, fontWeight: '800', fontSize: '14px' }}>{prix.toFixed(0)} DT/j</span>
                               <span style={{ color: PURPLE, fontSize: '11.5px', fontWeight: '600' }}>{total} DT</span>
                             </div>
-
-                            {/* Acompte min */}
                             <div style={{ fontSize: '10.5px', color: '#94A3B8', marginBottom: '10px' }}>
                               Acompte min. {rule.pct}% — {(parseFloat(total) * rule.pct / 100).toFixed(2)} DT
                             </div>
-
                             <button onClick={() => openReserveFromCalendar(v)}
                               style={{ width: '100%', padding: '8px', background: NAVY, color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
                               <PlusCircle size={14} /> Réserver
@@ -543,15 +492,7 @@ const Reservations = () => {
                       );
                     })}
                   </div>
-
-                  {/* Pagination */}
-                  <MiniPagination
-                    currentPage={vehiclePage}
-                    totalPages={totalVehiclePages}
-                    onPageChange={setVehiclePage}
-                    totalItems={filteredVehicles.length}
-                    perPage={VEHICLES_PER_PAGE}
-                  />
+                  <MiniPagination currentPage={vehiclePage} totalPages={totalVehiclePages} onPageChange={setVehiclePage} totalItems={filteredVehicles.length} perPage={VEHICLES_PER_PAGE} />
                 </>
               )}
             </div>
@@ -563,9 +504,7 @@ const Reservations = () => {
       {showRemplacementModal && remplacementReservation && (
         <div className="modal-overlay" onClick={() => setShowRemplacementModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '560px' }}>
-            <h2 style={{ color: RED, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <RefreshCw size={18} /> Remplacement de véhicule
-            </h2>
+            <h2 style={{ color: RED, display: 'flex', alignItems: 'center', gap: '8px' }}><RefreshCw size={18} /> Remplacement de véhicule</h2>
             <div style={{ background: '#FEE2E2', border: '1px solid #FECACA', borderRadius: '10px', padding: '14px', marginBottom: '16px', fontSize: '13px' }}>
               <div style={{ fontWeight: '700', color: RED, marginBottom: '6px' }}>Réservation #{remplacementReservation.id}</div>
               <div>Client: <strong>{clients.find(c => c.id === remplacementReservation.client)?.prenom} {clients.find(c => c.id === remplacementReservation.client)?.nom}</strong></div>
@@ -583,17 +522,13 @@ const Reservations = () => {
             </div>
             <label style={{ fontWeight: '700', fontSize: '13px', color: '#1A2535', display: 'block', marginBottom: '10px' }}>Choisir un véhicule de remplacement</label>
             {vehiculesRemplacement.length === 0 ? (
-              <div style={{ color: RED, fontWeight: '600', padding: '14px', background: '#FEE2E2', borderRadius: '8px', textAlign: 'center', fontSize: '13px' }}>
-                Aucun véhicule similaire disponible pour cette période
-              </div>
+              <div style={{ color: RED, fontWeight: '600', padding: '14px', background: '#FEE2E2', borderRadius: '8px', textAlign: 'center', fontSize: '13px' }}>Aucun véhicule similaire disponible</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '280px', overflowY: 'auto' }}>
                 {vehiculesRemplacement.map(v => (
                   <div key={v.id} style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid #DDE3ED', background: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <img src={getCarPhoto(v)} alt={v.marque}
-                        style={{ width: '50px', height: '36px', objectFit: 'cover', borderRadius: '5px' }}
-                        onError={e => { e.target.src = CAR_PHOTOS.default; }} />
+                      <img src={getCarPhoto(v)} alt={v.marque} style={{ width: '50px', height: '36px', objectFit: 'cover', borderRadius: '5px' }} onError={e => { e.target.src = CAR_PHOTOS.default; }} />
                       <div>
                         <div style={{ fontWeight: '700', fontSize: '13px' }}>{v.marque} {v.modele}</div>
                         <div style={{ fontSize: '11.5px', color: '#64748B' }}>{v.immatriculation}</div>
@@ -622,27 +557,21 @@ const Reservations = () => {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h2 style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-              {editingRes
-                ? <><ChevronRight size={18} /> Modifier la Réservation</>
-                : <><PlusCircle size={18} /> Nouvelle Réservation</>}
+              {editingRes ? <><ChevronRight size={18} /> Modifier la Réservation</> : <><PlusCircle size={18} /> Nouvelle Réservation</>}
             </h2>
-
             {fromCalendar && form.vehicle && form.date_debut && (
               <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '8px', padding: '10px 14px', marginBottom: '14px', fontSize: '13px', color: NAVY, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><CheckCircle size={14} /> Dates pré-remplies depuis le calendrier</span>
                 {form.montant_total && <strong style={{ color: GREEN, fontSize: '15px' }}>{form.montant_total} DT</strong>}
               </div>
             )}
-
             {saisonInfo && (
               <div style={{ background: saisonInfo.bg, color: saisonInfo.color, padding: '7px 12px', borderRadius: '8px', fontWeight: '700', fontSize: '12.5px', marginBottom: '14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                 {saisonInfo.label} <span style={{ opacity: 0.7 }}>({saisonInfo.pct})</span>
               </div>
             )}
-
             <form onSubmit={handleSubmit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-
                 <div className="form-group">
                   <label>Client <span style={{ color: RED }}>*</span></label>
                   <select value={form.client} onChange={e => setForm({...form, client: e.target.value})} required>
@@ -650,7 +579,6 @@ const Reservations = () => {
                     {clients.map(c => <option key={c.id} value={c.id}>{c.prenom} {c.nom}</option>)}
                   </select>
                 </div>
-
                 <div className="form-group">
                   <label>Véhicule <span style={{ color: RED }}>*</span></label>
                   {fromCalendar && selectedVehicle ? (
@@ -659,34 +587,24 @@ const Reservations = () => {
                         <div style={{ fontWeight: '700', fontSize: '13.5px' }}>{selectedVehicle.marque} {selectedVehicle.modele}</div>
                         <div style={{ fontSize: '11.5px', color: NAVY, marginTop: '1px' }}>{selectedVehicle.immatriculation}</div>
                       </div>
-                      <div style={{ fontWeight: '800', color: GREEN, fontSize: '13px' }}>
-                        {getPrixSaison(selectedVehicle, form.date_debut).toFixed(2)} DT/j
-                      </div>
+                      <div style={{ fontWeight: '800', color: GREEN, fontSize: '13px' }}>{getPrixSaison(selectedVehicle, form.date_debut).toFixed(2)} DT/j</div>
                       <input type="hidden" value={form.vehicle} />
                     </div>
                   ) : (
-                    <select value={form.vehicle}
-                      onChange={e => { const nv = e.target.value; setForm(f => ({...f, vehicle: nv})); calcTotal(form.date_debut, form.date_fin, nv); }} required>
+                    <select value={form.vehicle} onChange={e => { const nv = e.target.value; setForm(f => ({...f, vehicle: nv})); calcTotal(form.date_debut, form.date_fin, nv); }} required>
                       <option value="">Sélectionner un véhicule</option>
-                      {vehicles.map(v => (
-                        <option key={v.id} value={v.id}>{v.marque} {v.modele} — {v.immatriculation} ({v.prix_journalier} DT/j)</option>
-                      ))}
+                      {vehicles.map(v => <option key={v.id} value={v.id}>{v.marque} {v.modele} — {v.immatriculation} ({v.prix_journalier} DT/j)</option>)}
                     </select>
                   )}
                 </div>
-
                 <div className="form-group">
                   <label>Date début <span style={{ color: RED }}>*</span></label>
-                  <input type="date" value={form.date_debut}
-                    onChange={e => { const d = e.target.value; setForm(f => ({...f, date_debut: d})); calcTotal(d, form.date_fin, form.vehicle); }} required />
+                  <input type="date" value={form.date_debut} onChange={e => { const d = e.target.value; setForm(f => ({...f, date_debut: d})); calcTotal(d, form.date_fin, form.vehicle); }} required />
                 </div>
-
                 <div className="form-group">
                   <label>Date fin <span style={{ color: RED }}>*</span></label>
-                  <input type="date" value={form.date_fin}
-                    onChange={e => { const d = e.target.value; setForm(f => ({...f, date_fin: d})); calcTotal(form.date_debut, d, form.vehicle); }} required />
+                  <input type="date" value={form.date_fin} onChange={e => { const d = e.target.value; setForm(f => ({...f, date_fin: d})); calcTotal(form.date_debut, d, form.vehicle); }} required />
                 </div>
-
                 {form.montant_total && (
                   <div style={{ gridColumn: '1 / -1', background: NAVY, color: 'white', borderRadius: '10px', padding: '12px 16px', textAlign: 'center' }}>
                     <span style={{ fontSize: '13px', opacity: 0.8 }}>Montant total: </span>
@@ -694,15 +612,10 @@ const Reservations = () => {
                     <span style={{ fontSize: '13px', opacity: 0.75, marginLeft: '10px' }}>({formDays} jour{formDays > 1 ? 's' : ''})</span>
                   </div>
                 )}
-
                 <div className="form-group">
                   <label>Montant total (DT)</label>
-                  <input type="number" value={form.montant_total}
-                    onChange={e => setForm({...form, montant_total: e.target.value})}
-                    placeholder="Calculé automatiquement"
-                    style={{ background: '#F0FFF4', color: GREEN, fontWeight: '700' }} />
+                  <input type="number" value={form.montant_total} onChange={e => setForm({...form, montant_total: e.target.value})} placeholder="Calculé automatiquement" style={{ background: '#F0FFF4', color: GREEN, fontWeight: '700' }} />
                 </div>
-
                 <div className="form-group">
                   <label>
                     Acompte (DT) <span style={{ color: RED }}>*</span>
@@ -712,45 +625,20 @@ const Reservations = () => {
                       </span>
                     )}
                   </label>
-                  <input type="number" value={form.acompte}
-                    onChange={e => setForm({...form, acompte: e.target.value})}
-                    placeholder={`Minimum ${acompteMin} DT`}
-                    min={acompteMin}
-                    style={{
-                      border: acompteInvalid ? `2px solid ${RED}` : acompteValid ? `2px solid ${GREEN}` : '1.5px solid #DDE3ED',
-                      background: acompteInvalid ? '#FEE2E2' : acompteValid ? '#DCFCE7' : 'white',
-                    }} required />
-                  {acompteInvalid && (
-                    <div style={{ color: RED, fontSize: '11.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <AlertTriangle size={12} /> Minimum {acompteMin} DT ({activeRule.pct}%) requis
-                    </div>
-                  )}
-                  {acompteValid && form.montant_total && (
-                    <div style={{ color: GREEN, fontSize: '11.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <CheckCircle size={12} /> Restant: {(parseFloat(form.montant_total) - acompteVal).toFixed(2)} DT
-                    </div>
-                  )}
+                  <input type="number" value={form.acompte} onChange={e => setForm({...form, acompte: e.target.value})} placeholder={`Minimum ${acompteMin} DT`} min={acompteMin}
+                    style={{ border: acompteInvalid ? `2px solid ${RED}` : acompteValid ? `2px solid ${GREEN}` : '1.5px solid #DDE3ED', background: acompteInvalid ? '#FEE2E2' : acompteValid ? '#DCFCE7' : 'white' }} required />
+                  {acompteInvalid && <div style={{ color: RED, fontSize: '11.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={12} /> Minimum {acompteMin} DT ({activeRule.pct}%) requis</div>}
+                  {acompteValid && form.montant_total && <div style={{ color: GREEN, fontSize: '11.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12} /> Restant: {(parseFloat(form.montant_total) - acompteVal).toFixed(2)} DT</div>}
                 </div>
-
                 <div className="form-group">
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     Caution (DT) <span style={{ color: RED }}>*</span>
                     <span style={{ background: '#FEF3DC', color: '#92580A', fontSize: '10px', padding: '1px 7px', borderRadius: '10px', fontWeight: '700' }}>Obligatoire</span>
                   </label>
-                  <input type="number" value={form.caution}
-                    onChange={e => setForm({...form, caution: e.target.value})}
-                    placeholder="Ex: 500.00" min="0"
-                    style={{
-                      border: (!form.caution || parseFloat(form.caution) <= 0) ? `2px solid ${AMBER}` : `2px solid ${GREEN}`,
-                      background: (!form.caution || parseFloat(form.caution) <= 0) ? '#FEF3DC' : '#DCFCE7',
-                    }} required />
-                  {(!form.caution || parseFloat(form.caution) <= 0) && (
-                    <div style={{ color: '#92580A', fontSize: '11.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <AlertTriangle size={12} /> La caution est obligatoire
-                    </div>
-                  )}
+                  <input type="number" value={form.caution} onChange={e => setForm({...form, caution: e.target.value})} placeholder="Ex: 500.00" min="0"
+                    style={{ border: (!form.caution || parseFloat(form.caution) <= 0) ? `2px solid ${AMBER}` : `2px solid ${GREEN}`, background: (!form.caution || parseFloat(form.caution) <= 0) ? '#FEF3DC' : '#DCFCE7' }} required />
+                  {(!form.caution || parseFloat(form.caution) <= 0) && <div style={{ color: '#92580A', fontSize: '11.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={12} /> La caution est obligatoire</div>}
                 </div>
-
                 <div className="form-group">
                   <label>Statut</label>
                   <select value={form.statut} onChange={e => setForm({...form, statut: e.target.value})}>
@@ -760,18 +648,14 @@ const Reservations = () => {
                     <option value="annulée">Annulée</option>
                   </select>
                 </div>
-
                 <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                   <label>Notes</label>
-                  <textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})}
-                    rows={3} placeholder="Notes supplémentaires..." style={{ resize: 'vertical' }} />
+                  <textarea value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} rows={3} placeholder="Notes supplémentaires..." style={{ resize: 'vertical' }} />
                 </div>
               </div>
-
               <div className="modal-actions">
                 <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)}>Annuler</button>
-                <button type="submit" className="btn btn-primary"
-                  disabled={loading || acompteInvalid || !form.acompte || !form.caution || parseFloat(form.caution) <= 0}>
+                <button type="submit" className="btn btn-primary" disabled={loading || acompteInvalid || !form.acompte || !form.caution || parseFloat(form.caution) <= 0}>
                   {loading ? 'Enregistrement...' : (editingRes ? 'Modifier' : 'Réserver')}
                 </button>
               </div>
@@ -780,16 +664,9 @@ const Reservations = () => {
         </div>
       )}
 
-      {showNotifications && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setShowNotifications(false)} />
-      )}
+      {showNotifications && <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setShowNotifications(false)} />}
     </div>
   );
 };
 
 export default Reservations;
-
-
-
-
-
