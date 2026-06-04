@@ -24,7 +24,6 @@ const getAge = (date_acquisition) => {
 };
 
 const getVendreDate = (date_acquisition) => {
-  // ✅ FIX: si pas de date_acquisition → ignorer ce véhicule dans le graphique
   if (!date_acquisition) return null;
   const acq = new Date(date_acquisition);
   const vendreDate = new Date(acq.getTime() + 3.5 * 365.25 * 24 * 3600 * 1000);
@@ -35,8 +34,18 @@ const getVendreDate = (date_acquisition) => {
   };
 };
 
-// Statuts à exclure = véhicules déjà en cours de vente ou vendus
 const SOLD_STATUTS = ['vendu', 'a_vendre'];
+
+// ✅ Convertit une remise DT en points selon la grille fidélité
+const remiseToPts = (remiseDT) => {
+  const r = parseFloat(remiseDT || 0);
+  if (r <= 0) return 0;
+  if (r >= 250) return 5000; // 1 semaine gratuite
+  if (r >= 50)  return 1000; // 1 jour gratuit
+  if (r >= 25)  return 500;
+  if (r >= 10)  return 200;
+  return Math.round(r * 20); // fallback: 1 DT = 20 pts
+};
 
 const Dashboard = () => {
   const [reservations, setReservations] = useState([]);
@@ -69,17 +78,15 @@ const Dashboard = () => {
   };
 
   const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth();
   const months = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 
-  // Véhicules actifs = ni vendus ni en cours de vente
   const activeVehicles = vehicles.filter(v => !SOLD_STATUTS.includes(v.statut));
 
-  // ✅ FIX: uniquement les véhicules actifs qui dépassent 3.5 ans
   const vehiclesAVendre = activeVehicles
     .filter(v => getAge(v.date_acquisition) >= 3.5)
     .sort((a, b) => getAge(b.date_acquisition) - getAge(a.date_acquisition));
 
-  // ✅ FIX: graphique basé uniquement sur véhicules actifs
   const vendreParMoisData = (() => {
     const map = {};
     activeVehicles.forEach(v => {
@@ -134,23 +141,52 @@ const Dashboard = () => {
     accidents:    reservations.filter(r => r.client === c.id && r.a_accident).length,
   })).filter(c => c.reservations > 0).sort((a, b) => b.reservations - a.reservations).slice(0, 8);
 
+  // ✅ FIX POINTS FIDÉLITÉ
+  // Points gagnés = reservations confirmées/terminées * 100 pts par mois
+  // Points échangés = depuis 2 sources :
+  //   1. reservations avec remise_fidelite > 0 (groupées par mois de création/date_debut)
+  //   2. clients.points_utilises (total global → mis dans le mois courant si pas de date précise)
+  const totalPtsUtilises = clients.reduce((s, c) => s + (parseInt(c.points_utilises) || 0), 0);
+  
+  // Points échangés par mois via reservations (si remise_fidelite est disponible)
+  const ptsEchangesParMois = {};
+  reservations.forEach(r => {
+    const remise = parseFloat(r.remise_fidelite || 0);
+    if (remise <= 0) return;
+    const d = new Date(r.date_debut);
+    if (d.getFullYear() !== currentYear) return;
+    const m = d.getMonth();
+    const pts = remiseToPts(remise);
+    ptsEchangesParMois[m] = (ptsEchangesParMois[m] || 0) + pts;
+  });
+
+  // Si aucun échange détecté via reservations mais totalPtsUtilises > 0
+  // → placer dans le mois courant (données disponibles mais non datées)
+  const hasMonthlyExchangeData = Object.keys(ptsEchangesParMois).length > 0;
+  const fallbackMonth = currentMonth;
+
   const pointsFideliteData = months.map((m, i) => {
     const monthRes = reservations.filter(r => {
       const d = new Date(r.date_debut);
       return d.getFullYear() === currentYear && d.getMonth() === i;
     });
-    const ptsGagnes = monthRes.filter(r => r.statut === 'confirmée' || r.statut === 'terminée').length * 100;
-    const ptsEchanges = monthRes
-      .filter(r => r.remise_fidelite && parseFloat(r.remise_fidelite) > 0)
-      .reduce((s, r) => {
-        const remise = parseFloat(r.remise_fidelite);
-        if (remise >= 50) return s + 1000;
-        if (remise >= 25) return s + 500;
-        if (remise >= 10) return s + 200;
-        return s;
-      }, 0);
+
+    const ptsGagnes = monthRes
+      .filter(r => r.statut === 'confirmée' || r.statut === 'terminée')
+      .length * 100;
+
+    let ptsEchanges = ptsEchangesParMois[i] || 0;
+
+    // ✅ Si pas de données mensuelles précises, afficher total dans le mois courant
+    if (!hasMonthlyExchangeData && i === fallbackMonth && totalPtsUtilises > 0) {
+      ptsEchanges = totalPtsUtilises;
+    }
+
     return { mois: m, ptsGagnes, ptsEchanges };
   });
+
+  // ✅ Stats totales pour tooltip
+  const totalPtsGagnes = pointsFideliteData.reduce((s, d) => s + d.ptsGagnes, 0);
 
   const tauxOccupation = vehicles.map(v => ({
     name: `${v.marque} ${v.modele}`.substring(0, 12),
@@ -176,13 +212,28 @@ const Dashboard = () => {
     );
   };
 
+  // ✅ Tooltip personnalisé pour points fidélité
+  const PointsTooltip = ({ active, payload, label }) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div style={{ background: 'white', border: '1px solid #DDE3ED', borderRadius: '10px', padding: '10px 14px', fontSize: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+        <div style={{ fontWeight: '800', color: NAVY, marginBottom: '6px' }}>{label}</div>
+        {payload.map((p, i) => (
+          <div key={i} style={{ color: p.color, fontWeight: '700' }}>
+            {p.name} : {p.value} pts
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const chartOptions = [
     { value: 'depenses',      label: 'Revenus encaissés',            desc: 'Montants encaissés par client (DT)',              icon: <Banknote      size={14} /> },
     { value: 'vendre_mois',   label: 'Véhicules à vendre par mois',  desc: 'Nb de véhicules atteignant 3.5 ans par mois',     icon: <Tag           size={14} /> },
     { value: 'activite',      label: 'Activité mensuelle',           desc: 'Réservations, contrats et accidents par mois',    icon: <TrendingUp    size={14} /> },
     { value: 'points_mois',   label: 'Points fidélité par mois',     desc: 'Points gagnés et échangés chaque mois',           icon: <Star          size={14} /> },
     { value: 'accidents',     label: 'Accidents par mois',           desc: "Nombre d'accidents déclarés par mois",            icon: <AlertTriangle size={14} /> },
-    { value: 'occupation',    label: "Taux d'occupation véhicules",  desc: 'Réservations et accidents par véhicule',           icon: <Car           size={14} /> },
+    { value: 'occupation',    label: "Taux d'occupation véhicules",  desc: 'Réservations et accidents par véhicule',          icon: <Car           size={14} /> },
     { value: 'fidelite',      label: 'Fidélité clients',             desc: 'Nombre de réservations par client',               icon: <UserCheck     size={14} /> },
     { value: 'annulations',   label: 'Annulations clients',          desc: 'Réservations annulées par client',                icon: <X             size={14} /> },
     { value: 'remplacements', label: 'Remplacements véhicules',      desc: 'Véhicules remplacés suite à incident par mois',   icon: <RotateCcw     size={14} /> },
@@ -233,17 +284,14 @@ const Dashboard = () => {
                 <Tooltip content={<VendreTooltip />} />
                 <Bar dataKey="nb" radius={[8,8,0,0]} name="Véhicules à vendre">
                   {vendreParMoisData.map((entry, i) => (
-                    <Cell
-                      key={i}
-                      fill={entry.key <= `${currentYear}-${String(new Date().getMonth()+1).padStart(2,'0')}` ? RED : AMBER}
-                    />
+                    <Cell key={i} fill={entry.key <= `${currentYear}-${String(new Date().getMonth()+1).padStart(2,'0')}` ? RED : AMBER} />
                   ))}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
             <div style={{ display: 'flex', gap: '16px', marginTop: '8px', fontSize: '11px' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ width: '12px', height: '12px', background: RED, borderRadius: '3px', display: 'inline-block' }} /> Déjà dépassé (vendre maintenant)</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ width: '12px', height: '12px', background: AMBER, borderRadius: '3px', display: 'inline-block' }} /> À venir (préparer la vente)</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ width: '12px', height: '12px', background: RED, borderRadius: '3px', display: 'inline-block' }} /> Déjà dépassé</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><span style={{ width: '12px', height: '12px', background: AMBER, borderRadius: '3px', display: 'inline-block' }} /> À venir</span>
             </div>
           </div>
         );
@@ -266,17 +314,48 @@ const Dashboard = () => {
 
       case 'points_mois':
         return (
-          <ResponsiveContainer width="100%" height={340}>
-            <BarChart data={pointsFideliteData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-              <CartesianGrid {...gridProps} />
-              <XAxis dataKey="mois" tick={axisTick} />
-              <YAxis tick={axisTick} allowDecimals={false} />
-              <Tooltip contentStyle={tipStyle} formatter={v => `${v} pts`} />
-              <Legend {...legStyle} />
-              <Bar dataKey="ptsGagnes"   fill={GREEN}  radius={[6,6,0,0]} name="Points gagnés" />
-              <Bar dataKey="ptsEchanges" fill={PURPLE} radius={[6,6,0,0]} name="Points échangés" />
-            </BarChart>
-          </ResponsiveContainer>
+          <div>
+            {/* ✅ Résumé global points */}
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              <div style={{ background: '#DCFCE7', border: '1px solid #86EFAC', borderRadius: '8px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Star size={16} color={GREEN} />
+                <div>
+                  <div style={{ fontWeight: '800', color: GREEN, fontSize: '18px' }}>{totalPtsGagnes.toLocaleString()} pts</div>
+                  <div style={{ fontSize: '11px', color: '#166534', fontWeight: '600' }}>Total gagnés {currentYear}</div>
+                </div>
+              </div>
+              <div style={{ background: '#F3EEFF', border: '1px solid #C4B5FD', borderRadius: '8px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <RotateCcw size={16} color={PURPLE} />
+                <div>
+                  <div style={{ fontWeight: '800', color: PURPLE, fontSize: '18px' }}>{totalPtsUtilises.toLocaleString()} pts</div>
+                  <div style={{ fontSize: '11px', color: PURPLE, fontWeight: '600' }}>Total échangés (cumulé)</div>
+                </div>
+              </div>
+              <div style={{ background: '#EFF4FB', border: '1px solid #BFDBFE', borderRadius: '8px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Star size={16} color={NAVY} />
+                <div>
+                  <div style={{ fontWeight: '800', color: NAVY, fontSize: '18px' }}>{(totalPtsGagnes - totalPtsUtilises).toLocaleString()} pts</div>
+                  <div style={{ fontSize: '11px', color: NAVY, fontWeight: '600' }}>Solde disponible</div>
+                </div>
+              </div>
+            </div>
+            {!hasMonthlyExchangeData && totalPtsUtilises > 0 && (
+              <div style={{ background: '#FEF3DC', border: '1px solid #FCD34D', borderRadius: '8px', padding: '8px 14px', marginBottom: '12px', fontSize: '12px', color: '#92580A' }}>
+                ℹ️ Les {totalPtsUtilises} pts échangés sont affichés sur le mois courant ({months[currentMonth]}) — les dates précises d'échange ne sont pas encore tracées par mois.
+              </div>
+            )}
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={pointsFideliteData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <CartesianGrid {...gridProps} />
+                <XAxis dataKey="mois" tick={axisTick} />
+                <YAxis tick={axisTick} allowDecimals={false} />
+                <Tooltip content={<PointsTooltip />} />
+                <Legend {...legStyle} />
+                <Bar dataKey="ptsGagnes"   fill={GREEN}  radius={[6,6,0,0]} name="Points gagnés" />
+                <Bar dataKey="ptsEchanges" fill={PURPLE} radius={[6,6,0,0]} name="Points échangés" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         );
 
       case 'accidents':
@@ -417,8 +496,7 @@ const Dashboard = () => {
             <span style={{ fontWeight: '800', color: '#92580A', fontSize: '14px' }}>
               🔴 {vehiclesAVendre.length} véhicule(s) ont dépassé 3.5 ans — À vendre
             </span>
-            <button
-              onClick={() => setSelectedChart('vendre_mois')}
+            <button onClick={() => setSelectedChart('vendre_mois')}
               style={{ marginLeft: 'auto', padding: '5px 12px', background: RED, color: 'white', border: 'none', borderRadius: '7px', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
               Voir graphique →
             </button>
