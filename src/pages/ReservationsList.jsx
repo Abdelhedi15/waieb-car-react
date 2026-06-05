@@ -527,7 +527,8 @@ const ReservationsList = () => {
       const oldVeh   = getVehicle(reservation.vehicle);
 
       // ✅ Recalcul acompte = 10% du nouveau total
-      const newAcompte = (parseFloat(newTotal) * 0.10).toFixed(2);
+      const newAcomptePct = newDays <= 3 ? 0.20 : newDays <= 7 ? 0.30 : newDays <= 14 ? 0.40 : 0.50;
+const newAcompte = (parseFloat(newTotal) * newAcomptePct).toFixed(2);
 
       await api.patch(`/reservations/${reservation.id}/`, {
         vehicle:             newVehicle.id,
