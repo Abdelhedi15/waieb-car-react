@@ -469,21 +469,36 @@ const ReservationsList = () => {
   };
 
   const handleRetourConfirm = async (data) => {
-    try {
-      await api.patch(`/reservations/${data.reservation_id}/`, {
-        inspection_retour_faite: true,
-        etat_retour:             data.etat_retour,
-        notes_retour:            data.notes_retour,
-        score_retour:            data.score_retour,
-        kilometrage_retour:      data.kilometrage_retour,
-        carburant_retour:        data.carburant_retour,
-        eraflures_retour:        data.eraflures_retour,
-        bosses_retour:           data.bosses_retour,
-      });
-      await fetchAll();
-      setRetourModal(null);
-    } catch(e) { alert('Erreur lors de l\'enregistrement: ' + JSON.stringify(e.response?.data)); }
-  };
+  try {
+    // 1. Enregistrer l'inspection + passer la réservation en "terminée"
+    await api.patch(`/reservations/${data.reservation_id}/`, {
+      inspection_retour_faite: true,
+      statut:                  'terminée',
+      etat_retour:             data.etat_retour,
+      notes_retour:            data.notes_retour,
+      score_retour:            data.score_retour,
+      kilometrage_retour:      data.kilometrage_retour,
+      carburant_retour:        data.carburant_retour,
+      eraflures_retour:        data.eraflures_retour,
+      bosses_retour:           data.bosses_retour,
+    });
+
+    // 2. Remettre le véhicule disponible + màj état carrosserie + kilométrage
+    const newEtat = data.etat_retour === 'dommages' ? 'dommages'
+                  : data.etat_retour === 'defauts'  ? 'defauts'
+                  : 'excellent';
+    await api.patch(`/vehicles/${retourModal.vehicle.id}/`, {
+      statut:           'disponible',
+      etat_carrosserie: newEtat,
+      ...(data.kilometrage_retour ? { kilometrage: data.kilometrage_retour } : {}),
+    });
+
+    await fetchAll();
+    setRetourModal(null);
+  } catch(e) {
+    alert('Erreur lors de l\'enregistrement: ' + JSON.stringify(e.response?.data));
+  }
+};
 
   const getClient   = id => clients.find(c => c.id === id);
   const getVehicle  = id => vehicles.find(v => v.id === id);

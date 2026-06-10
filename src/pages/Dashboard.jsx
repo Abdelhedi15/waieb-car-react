@@ -36,16 +36,18 @@ const getVendreDate = (date_acquisition) => {
 
 const SOLD_STATUTS = ['vendu', 'a_vendre'];
 
-// ✅ Convertit une remise DT en points selon la grille fidélité
 const remiseToPts = (remiseDT) => {
   const r = parseFloat(remiseDT || 0);
   if (r <= 0) return 0;
-  if (r >= 250) return 5000; // 1 semaine gratuite
-  if (r >= 50)  return 1000; // 1 jour gratuit
+  if (r >= 250) return 5000;
+  if (r >= 50)  return 1000;
   if (r >= 25)  return 500;
   if (r >= 10)  return 200;
-  return Math.round(r * 20); // fallback: 1 DT = 20 pts
+  return Math.round(r * 20);
 };
+
+// Helper: reservation has damage (accident OR bad return inspection)
+const hasDamage = (r) => (r.a_accident || r.etat_retour === 'dommages') || r.etat_retour === 'dommages';
 
 const Dashboard = () => {
   const [reservations, setReservations] = useState([]);
@@ -109,7 +111,7 @@ const Dashboard = () => {
     return {
       mois: m,
       reservations: monthRes.length,
-      accidents: monthRes.filter(r => r.a_accident).length,
+      accidents: monthRes.filter(r => hasDamage(r)).length,
       contrats: contracts.filter(ct => {
         const d = new Date(ct.date_contrat);
         return d.getFullYear() === currentYear && d.getMonth() === i;
@@ -138,17 +140,11 @@ const Dashboard = () => {
     name:         `${c.prenom} ${c.nom}`.substring(0, 14),
     reservations: reservations.filter(r => r.client === c.id).length,
     depense:      parseFloat(reservations.filter(r => r.client === c.id).reduce((s, r) => s + parseFloat(r.montant_total || 0), 0).toFixed(2)),
-    accidents:    reservations.filter(r => r.client === c.id && r.a_accident).length,
+    accidents:    reservations.filter(r => r.client === c.id && hasDamage(r)).length,
   })).filter(c => c.reservations > 0).sort((a, b) => b.reservations - a.reservations).slice(0, 8);
 
-  // ✅ FIX POINTS FIDÉLITÉ
-  // Points gagnés = reservations confirmées/terminées * 100 pts par mois
-  // Points échangés = depuis 2 sources :
-  //   1. reservations avec remise_fidelite > 0 (groupées par mois de création/date_debut)
-  //   2. clients.points_utilises (total global → mis dans le mois courant si pas de date précise)
   const totalPtsUtilises = clients.reduce((s, c) => s + (parseInt(c.points_utilises) || 0), 0);
-  
-  // Points échangés par mois via reservations (si remise_fidelite est disponible)
+
   const ptsEchangesParMois = {};
   reservations.forEach(r => {
     const remise = parseFloat(r.remise_fidelite || 0);
@@ -160,8 +156,6 @@ const Dashboard = () => {
     ptsEchangesParMois[m] = (ptsEchangesParMois[m] || 0) + pts;
   });
 
-  // Si aucun échange détecté via reservations mais totalPtsUtilises > 0
-  // → placer dans le mois courant (données disponibles mais non datées)
   const hasMonthlyExchangeData = Object.keys(ptsEchangesParMois).length > 0;
   const fallbackMonth = currentMonth;
 
@@ -170,32 +164,26 @@ const Dashboard = () => {
       const d = new Date(r.date_debut);
       return d.getFullYear() === currentYear && d.getMonth() === i;
     });
-
     const ptsGagnes = monthRes
       .filter(r => r.statut === 'confirmée' || r.statut === 'terminée')
       .length * 100;
-
     let ptsEchanges = ptsEchangesParMois[i] || 0;
-
-    // ✅ Si pas de données mensuelles précises, afficher total dans le mois courant
     if (!hasMonthlyExchangeData && i === fallbackMonth && totalPtsUtilises > 0) {
       ptsEchanges = totalPtsUtilises;
     }
-
     return { mois: m, ptsGagnes, ptsEchanges };
   });
 
-  // ✅ Stats totales pour tooltip
   const totalPtsGagnes = pointsFideliteData.reduce((s, d) => s + d.ptsGagnes, 0);
 
   const tauxOccupation = vehicles.map(v => ({
     name: `${v.marque} ${v.modele}`.substring(0, 12),
     reservations: reservations.filter(r => r.vehicle === v.id).length,
-    accidents:    reservations.filter(r => r.vehicle === v.id && r.a_accident).length,
+    accidents:    reservations.filter(r => r.vehicle === v.id && hasDamage(r)).length,
   }));
 
   const totalRevenus   = payments.filter(p => p.statut === 'payé').reduce((s, p) => s + parseFloat(p.montant), 0);
-  const totalAccidents = reservations.filter(r => r.a_accident).length;
+  const totalAccidents = reservations.filter(r => hasDamage(r)).length;
 
   const VendreTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
@@ -212,7 +200,6 @@ const Dashboard = () => {
     );
   };
 
-  // ✅ Tooltip personnalisé pour points fidélité
   const PointsTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     return (
@@ -232,8 +219,8 @@ const Dashboard = () => {
     { value: 'vendre_mois',   label: 'Véhicules à vendre par mois',  desc: 'Nb de véhicules atteignant 3.5 ans par mois',     icon: <Tag           size={14} /> },
     { value: 'activite',      label: 'Activité mensuelle',           desc: 'Réservations, contrats et accidents par mois',    icon: <TrendingUp    size={14} /> },
     { value: 'points_mois',   label: 'Points fidélité par mois',     desc: 'Points gagnés et échangés chaque mois',           icon: <Star          size={14} /> },
-    { value: 'accidents',     label: 'Accidents par mois',           desc: "Nombre d'accidents déclarés par mois",            icon: <AlertTriangle size={14} /> },
-    { value: 'occupation',    label: "Taux d'occupation véhicules",  desc: 'Réservations et accidents par véhicule',          icon: <Car           size={14} /> },
+    { value: 'accidents',     label: 'Dommages & accidents par mois',desc: "Accidents déclarés + retours avec dommages",       icon: <AlertTriangle size={14} /> },
+    { value: 'occupation',    label: "Taux d'occupation véhicules",  desc: 'Réservations et dommages par véhicule',           icon: <Car           size={14} /> },
     { value: 'fidelite',      label: 'Fidélité clients',             desc: 'Nombre de réservations par client',               icon: <UserCheck     size={14} /> },
     { value: 'annulations',   label: 'Annulations clients',          desc: 'Réservations annulées par client',                icon: <X             size={14} /> },
     { value: 'remplacements', label: 'Remplacements véhicules',      desc: 'Véhicules remplacés suite à incident par mois',   icon: <RotateCcw     size={14} /> },
@@ -307,7 +294,7 @@ const Dashboard = () => {
               <Legend {...legStyle} />
               <Line type="monotone" dataKey="reservations" stroke={NAVY}   strokeWidth={2.5} dot={{ r: 5 }} name="Réservations" />
               <Line type="monotone" dataKey="contrats"     stroke={PURPLE} strokeWidth={2.5} dot={{ r: 5 }} name="Contrats" />
-              <Line type="monotone" dataKey="accidents"    stroke={RED}    strokeWidth={2.5} dot={{ r: 5 }} name="Accidents" />
+              <Line type="monotone" dataKey="accidents"    stroke={RED}    strokeWidth={2.5} dot={{ r: 5 }} name="Dommages/Accidents" />
             </LineChart>
           </ResponsiveContainer>
         );
@@ -315,7 +302,6 @@ const Dashboard = () => {
       case 'points_mois':
         return (
           <div>
-            {/* ✅ Résumé global points */}
             <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
               <div style={{ background: '#DCFCE7', border: '1px solid #86EFAC', borderRadius: '8px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Star size={16} color={GREEN} />
@@ -366,7 +352,7 @@ const Dashboard = () => {
               <XAxis dataKey="mois" tick={axisTick} />
               <YAxis tick={axisTick} allowDecimals={false} />
               <Tooltip contentStyle={tipStyle} />
-              <Bar dataKey="accidents" fill={RED} radius={[6,6,0,0]} name="Accidents" />
+              <Bar dataKey="accidents" fill={RED} radius={[6,6,0,0]} name="Dommages & Accidents" />
             </BarChart>
           </ResponsiveContainer>
         );
@@ -381,7 +367,7 @@ const Dashboard = () => {
               <Tooltip contentStyle={tipStyle} />
               <Legend {...legStyle} />
               <Bar dataKey="reservations" fill={NAVY} radius={[6,6,0,0]} name="Réservations" />
-              <Bar dataKey="accidents"    fill={RED}  radius={[6,6,0,0]} name="Accidents" />
+              <Bar dataKey="accidents"    fill={RED}  radius={[6,6,0,0]} name="Dommages/Accidents" />
             </BarChart>
           </ResponsiveContainer>
         );
@@ -396,7 +382,7 @@ const Dashboard = () => {
               <Tooltip contentStyle={tipStyle} />
               <Legend {...legStyle} />
               <Bar dataKey="reservations" fill={PURPLE} radius={[6,6,0,0]} name="Réservations" />
-              <Bar dataKey="accidents"    fill={RED}    radius={[6,6,0,0]} name="Accidents" />
+              <Bar dataKey="accidents"    fill={RED}    radius={[6,6,0,0]} name="Dommages/Accidents" />
             </BarChart>
           </ResponsiveContainer>
         );
@@ -461,7 +447,7 @@ const Dashboard = () => {
         <LayoutDashboard size={22} color={NAVY} /> Tableau de Bord
       </h1>
 
-      {/* ── Stat cards */}
+      {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: '12px', marginBottom: '20px' }}>
         {[
           { label: 'Véhicules',    value: activeVehicles.length,           color: NAVY,   bg: '#EFF4FB', icon: <Car size={19} />,           highlight: false },
@@ -469,7 +455,7 @@ const Dashboard = () => {
           { label: 'Clients',      value: clients.length,                  color: GREEN,  bg: '#DCFCE7', icon: <Users size={19} />,         highlight: false },
           { label: 'Réservations', value: reservations.length,             color: AMBER,  bg: '#FEF3DC', icon: <CalendarCheck size={19} />, highlight: false },
           { label: 'Revenus',      value: `${totalRevenus.toFixed(0)} DT`, color: PURPLE, bg: '#F3EEFF', icon: <Banknote size={19} />,      highlight: false },
-          { label: 'Accidents',    value: totalAccidents,                  color: totalAccidents > 0 ? RED : GREEN, bg: totalAccidents > 0 ? '#FEE2E2' : '#DCFCE7', icon: <AlertTriangle size={19} />, highlight: totalAccidents > 0 },
+          { label: 'Dommages',     value: totalAccidents,                  color: totalAccidents > 0 ? RED : GREEN, bg: totalAccidents > 0 ? '#FEE2E2' : '#DCFCE7', icon: <AlertTriangle size={19} />, highlight: totalAccidents > 0 },
         ].map(s => (
           <div key={s.label} className="card" style={{
             textAlign: 'center', padding: '16px 8px', position: 'relative',
@@ -488,7 +474,7 @@ const Dashboard = () => {
         ))}
       </div>
 
-      {/* ── À vendre alert */}
+      {/* À vendre alert */}
       {vehiclesAVendre.length > 0 && (
         <div style={{ background: '#FEF3DC', border: '1.5px solid #E8A020', borderRadius: '12px', padding: '14px 18px', marginBottom: '22px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
@@ -530,7 +516,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* ── Chart with dropdown */}
+      {/* Chart with dropdown */}
       <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: '22px' }}>
         <div style={{ padding: '16px 22px', background: NAVY, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -569,7 +555,7 @@ const Dashboard = () => {
         <div style={{ padding: '22px' }}>{renderChart()}</div>
       </div>
 
-      {/* ── Top Véhicules + Top Clients */}
+      {/* Top Véhicules + Top Clients */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
         <div className="card">
           <h3 style={{ color: NAVY, marginBottom: '16px', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -581,7 +567,7 @@ const Dashboard = () => {
                 .map(v => ({
                   ...v,
                   nbRes:   reservations.filter(r => r.vehicle === v.id).length,
-                  nbAcc:   reservations.filter(r => r.vehicle === v.id && r.a_accident).length,
+                  nbAcc:   reservations.filter(r => r.vehicle === v.id && hasDamage(r)).length,
                   aVendre: vehiclesAVendre.some(x => x.id === v.id),
                   age:     getAge(v.date_acquisition) > 0 ? getAge(v.date_acquisition).toFixed(1) : null,
                 }))

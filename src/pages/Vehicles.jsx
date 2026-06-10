@@ -1,7 +1,6 @@
 ﻿import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
-  Car, Plus, Pencil, Trash2, FileText, Search,
+  Car, Plus, Pencil, Trash2, Search,
   Fuel, Users, Gauge, Palette, AlertTriangle,
   CheckCircle, Wrench, Shield, Tag, XCircle,
   Filter, SlidersHorizontal, Key, Settings,
@@ -69,7 +68,6 @@ const getCarPhoto = (v) => {
   return CAR_PHOTOS[(v?.marque||'').toLowerCase()] || CAR_PHOTOS.default;
 };
 
-// ✅ Catégories avec emojis distinctifs
 const CATEGORIES = [
   { key: 'all',    label: 'Tous',             icon: '🚗' },
   { key: 'small',  label: 'Petite',           icon: '🚙' },
@@ -80,7 +78,6 @@ const CATEGORIES = [
   { key: 'luxury', label: 'Luxe / Premium',   icon: '💎' },
 ];
 
-// ✅ Statuts avec icônes Lucide professionnelles
 const STATUT_FILTERS = [
   { value: 'all',          label: 'Tous',         icon: null,                     color: '#1B3A6B', bg: '#EFF4FB' },
   { value: 'disponible',   label: 'Disponible',   icon: <CheckCircle size={13}/>, color: '#16A34A', bg: '#DCFCE7' },
@@ -126,7 +123,6 @@ const EMPTY_FORM = {
 const Vehicles = () => {
   const { user }    = useAuth();
   const isAdmin     = user?.role === 'admin';
-  const navigate    = useNavigate();
 
   const [vehicles,     setVehicles]     = useState([]);
   const [reservations, setReservations] = useState([]);
@@ -286,7 +282,7 @@ const Vehicles = () => {
         ))}
       </div>
 
-      {/* ✅ Filtres catégories — emojis distinctifs */}
+      {/* Filtres catégories */}
       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
         {CATEGORIES.map(cat => {
           const count  = cat.key === 'all' ? vehicles.length : vehicles.filter(v => classifyVehicle(v) === cat.key).length;
@@ -308,7 +304,7 @@ const Vehicles = () => {
         })}
       </div>
 
-      {/* ── Search */}
+      {/* Search */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
           <Search size={15} color="#94A3B8" style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
@@ -318,7 +314,7 @@ const Vehicles = () => {
         </div>
       </div>
 
-      {/* ✅ Filtres statuts — icônes Lucide professionnelles */}
+      {/* Filtres statuts */}
       <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', marginBottom: '16px' }}>
         {STATUT_FILTERS.map(s => {
           const count  = s.value === 'all' ? null : vehicles.filter(v => norm(v.statut) === norm(s.value)).length;
@@ -347,7 +343,7 @@ const Vehicles = () => {
         })}
       </div>
 
-      {/* ── Compteur */}
+      {/* Compteur */}
       <div style={{ fontSize: '12.5px', color: '#64748B', marginBottom: '14px' }}>
         <strong style={{ color: '#1A2535' }}>{filtered.length}</strong> véhicule{filtered.length !== 1 ? 's' : ''} trouvé{filtered.length !== 1 ? 's' : ''}
         {(search || statFilter !== 'all' || catFilter !== 'all') && (
@@ -358,7 +354,7 @@ const Vehicles = () => {
         )}
       </div>
 
-      {/* ── Grid véhicules */}
+      {/* Grid véhicules */}
       {paginated.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
           <Car size={40} color="#DDE3ED" style={{ margin: '0 auto 12px' }} />
@@ -462,15 +458,12 @@ const Vehicles = () => {
                     ))}
                   </div>
 
+                  {/* ── Boutons — Rapport état supprimé */}
                   <div style={{ display: 'flex', gap: '7px', flexDirection: 'column' }}>
                     <div style={{ display: 'flex', gap: '7px' }}>
                       <button onClick={() => openEdit(v)}
                         style={{ flex: 1, padding: '8px', background: NAVY, color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
                         <Pencil size={13} /> Modifier
-                      </button>
-                      <button onClick={() => navigate(`/vehicles/${v.id}/state`)}
-                        style={{ flex: 1, padding: '8px', background: '#EFF4FB', color: NAVY, border: '1.5px solid #DDE3ED', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
-                        <FileText size={13} /> Rapport état
                       </button>
                       {isAdmin && (
                         <button onClick={() => handleDelete(v.id)}
