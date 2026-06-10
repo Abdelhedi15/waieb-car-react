@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import {
   X, CheckCircle, AlertTriangle, ClipboardList,
-  ChevronRight, Send,
+  ChevronRight, Send, Gauge, Fuel, Key, FileText,
+  Shield, Wrench, Triangle, Eye, Lightbulb,
+  Star, ThumbsUp, Zap, Car, MapPin, FileCheck,
+  Hash, BarChart2, StickyNote, ArrowLeft,
 } from 'lucide-react';
 
 const NAVY   = '#1B3A6B';
@@ -11,30 +14,30 @@ const RED    = '#DC2626';
 const PURPLE = '#7C3AED';
 
 const CHECKLIST_ITEMS = [
-  { key: 'proprete_int',    icon: '🧹', label: 'Propreté intérieure',      group: 'état' },
-  { key: 'proprete_ext',    icon: '✨', label: 'Propreté extérieure',      group: 'état' },
-  { key: 'carburant',       icon: '⛽', label: 'Niveau carburant correct',  group: 'technique' },
-  { key: 'cles',            icon: '🔑', label: 'Clés rendues',             group: 'documents' },
-  { key: 'carte_grise',     icon: '📄', label: 'Carte grise rendue',       group: 'documents' },
-  { key: 'assurance',       icon: '🛡️', label: 'Vignette assurance',       group: 'documents' },
-  { key: 'roue_secours',    icon: '🔧', label: 'Roue de secours présente', group: 'technique' },
-  { key: 'triangles',       icon: '⚠️', label: 'Triangles de sécurité',    group: 'technique' },
-  { key: 'cric',            icon: '🔩', label: 'Cric présent',             group: 'technique' },
-  { key: 'vitre_ok',        icon: '🪟', label: 'Vitres intactes',          group: 'carrosserie' },
-  { key: 'retroviseurs_ok', icon: '🔍', label: 'Rétroviseurs intacts',     group: 'carrosserie' },
-  { key: 'phares_ok',       icon: '💡', label: 'Phares/feux fonctionnels', group: 'technique' },
+  { key: 'proprete_int',    icon: <Wrench size={15}/>,      label: 'Propreté intérieure',      group: 'état' },
+  { key: 'proprete_ext',    icon: <Star size={15}/>,        label: 'Propreté extérieure',      group: 'état' },
+  { key: 'carburant',       icon: <Fuel size={15}/>,        label: 'Niveau carburant correct',  group: 'technique' },
+  { key: 'cles',            icon: <Key size={15}/>,         label: 'Clés rendues',             group: 'documents' },
+  { key: 'carte_grise',     icon: <FileText size={15}/>,    label: 'Carte grise rendue',       group: 'documents' },
+  { key: 'assurance',       icon: <Shield size={15}/>,      label: 'Vignette assurance',       group: 'documents' },
+  { key: 'roue_secours',    icon: <Wrench size={15}/>,      label: 'Roue de secours présente', group: 'technique' },
+  { key: 'triangles',       icon: <Triangle size={15}/>,    label: 'Triangles de sécurité',    group: 'technique' },
+  { key: 'cric',            icon: <Zap size={15}/>,         label: 'Cric présent',             group: 'technique' },
+  { key: 'vitre_ok',        icon: <Eye size={15}/>,         label: 'Vitres intactes',          group: 'carrosserie' },
+  { key: 'retroviseurs_ok', icon: <Eye size={15}/>,         label: 'Rétroviseurs intacts',     group: 'carrosserie' },
+  { key: 'phares_ok',       icon: <Lightbulb size={15}/>,   label: 'Phares/feux fonctionnels', group: 'technique' },
 ];
 
 const ETAT_OPTIONS = [
-  { value: 'excellent', label: 'Excellent',       color: GREEN,  bg: '#DCFCE7', emoji: '⭐' },
-  { value: 'bon',       label: 'Bon état',        color: NAVY,   bg: '#EFF4FB', emoji: '👍' },
-  { value: 'defauts',   label: 'Défauts mineurs', color: AMBER,  bg: '#FEF9C3', emoji: '⚠️' },
-  { value: 'dommages',  label: 'Dommages',        color: RED,    bg: '#FEE2E2', emoji: '🔴' },
+  { value: 'excellent', label: 'Excellent',       color: GREEN,  bg: '#DCFCE7', icon: <Star size={20} color={GREEN} /> },
+  { value: 'bon',       label: 'Bon état',        color: NAVY,   bg: '#EFF4FB', icon: <ThumbsUp size={20} color={NAVY} /> },
+  { value: 'defauts',   label: 'Défauts mineurs', color: AMBER,  bg: '#FEF9C3', icon: <AlertTriangle size={20} color={AMBER} /> },
+  { value: 'dommages',  label: 'Dommages',        color: RED,    bg: '#FEE2E2', icon: <Zap size={20} color={RED} /> },
 ];
 
 const CAR_MARKS = {
-  eraflure: { color: '#F59E0B', label: 'Éraflure', emoji: '—' },
-  bosse:    { color: '#DC2626', label: 'Bosse',     emoji: '●' },
+  eraflure: { color: '#F59E0B', label: 'Éraflure', symbol: '—' },
+  bosse:    { color: '#DC2626', label: 'Bosse',     symbol: '●' },
 };
 
 const CAR_ZONES = [
@@ -48,6 +51,13 @@ const CAR_ZONES = [
   { id: 'arriere_centre', x: 50, y: 78, label: 'Arrière' },
   { id: 'arriere_droit',  x: 82, y: 70, label: 'Arrière D.' },
 ];
+
+const GROUP_LABELS = {
+  état:        { label: 'État général',  icon: <Car size={13} /> },
+  technique:   { label: 'Technique',     icon: <Wrench size={13} /> },
+  carrosserie: { label: 'Carrosserie',   icon: <Shield size={13} /> },
+  documents:   { label: 'Documents',     icon: <FileCheck size={13} /> },
+};
 
 const RetourCheckModal = ({ reservation, client, vehicle, onClose, onConfirm }) => {
   const [step, setStep]           = useState(1);
@@ -83,7 +93,7 @@ const RetourCheckModal = ({ reservation, client, vehicle, onClose, onConfirm }) 
       marks,
       etat_retour:         etatGeneral,
       notes_retour:        notes,
-      kilometrage_retour:  kilometrage,
+      kilometrage_retour:  kilometrage ? parseInt(kilometrage) : null,
       carburant_retour:    carburant,
       score_retour:        score,
       eraflures_retour:    JSON.stringify(marks.filter(m => m.type === 'eraflure')),
@@ -116,16 +126,18 @@ const RetourCheckModal = ({ reservation, client, vehicle, onClose, onConfirm }) 
                 <ClipboardList size={22} />
               </div>
               <div>
-                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>🔍 Inspection de Retour</h2>
-                <div style={{ fontSize: '12px', opacity: 0.75, marginTop: '3px' }}>
-                  Rés. #{reservation.id} · {vehicle?.marque} {vehicle?.modele} ({vehicle?.immatriculation})
+                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Eye size={18} /> Inspection de Retour
+                </h2>
+                <div style={{ fontSize: '12px', opacity: 0.75, marginTop: '3px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Hash size={11} /> {reservation.id} · <Car size={11} /> {vehicle?.marque} {vehicle?.modele} ({vehicle?.immatriculation})
                 </div>
                 <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
-                  <span style={{ background: 'rgba(255,255,255,0.15)', padding: '2px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: '600' }}>
-                    📅 {reservation.date_debut} → {reservation.date_fin}
+                  <span style={{ background: 'rgba(255,255,255,0.15)', padding: '2px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <ChevronRight size={11} /> {reservation.date_debut} → {reservation.date_fin}
                   </span>
-                  <span style={{ background: 'rgba(255,255,255,0.15)', padding: '2px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: '600' }}>
-                    👤 {client?.prenom} {client?.nom}
+                  <span style={{ background: 'rgba(255,255,255,0.15)', padding: '2px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Shield size={11} /> {client?.prenom} {client?.nom}
                   </span>
                 </div>
               </div>
@@ -150,7 +162,7 @@ const RetourCheckModal = ({ reservation, client, vehicle, onClose, onConfirm }) 
                     color: step === i + 1 ? NAVY : 'white',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '11px',
                   }}>
-                    {step > i + 1 ? '✓' : i + 1}
+                    {step > i + 1 ? <CheckCircle size={13} /> : i + 1}
                   </div>
                   <span style={{ fontSize: '12px', fontWeight: '700', opacity: step === i + 1 ? 1 : 0.55 }}>{s}</span>
                 </div>
@@ -168,14 +180,16 @@ const RetourCheckModal = ({ reservation, client, vehicle, onClose, onConfirm }) 
             <div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '20px' }}>
                 <div style={{ background: '#F8FAFC', borderRadius: '12px', padding: '14px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748B', display: 'block', marginBottom: '8px' }}>📍 Kilométrage retour</label>
+                  <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                    <MapPin size={13} /> Kilométrage retour
+                  </label>
                   <input type="number" value={kilometrage} onChange={e => setKilometrage(e.target.value)}
                     placeholder={`Actuel: ${vehicle?.kilometrage || '—'} km`}
                     style={{ width: '100%', padding: '10px', border: '1.5px solid #DDE3ED', borderRadius: '8px', fontSize: '14px', fontWeight: '700', boxSizing: 'border-box' }} />
                 </div>
                 <div style={{ background: '#F8FAFC', borderRadius: '12px', padding: '14px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748B', display: 'block', marginBottom: '8px' }}>
-                    ⛽ Carburant — <span style={{ color: carburant < 25 ? RED : carburant < 50 ? AMBER : GREEN }}>{carburant}%</span>
+                  <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                    <Fuel size={13} /> Carburant — <span style={{ color: carburant < 25 ? RED : carburant < 50 ? AMBER : GREEN }}>{carburant}%</span>
                   </label>
                   <input type="range" min="0" max="100" step="5" value={carburant}
                     onChange={e => setCarburant(parseInt(e.target.value))}
@@ -188,8 +202,8 @@ const RetourCheckModal = ({ reservation, client, vehicle, onClose, onConfirm }) 
 
               {['état', 'technique', 'carrosserie', 'documents'].map(group => (
                 <div key={group} style={{ marginBottom: '16px' }}>
-                  <div style={{ fontSize: '11px', fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>
-                    {group === 'état' ? '🪣 État général' : group === 'technique' ? '🔧 Technique' : group === 'carrosserie' ? '🚗 Carrosserie' : '📋 Documents'}
+                  <div style={{ fontSize: '11px', fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {GROUP_LABELS[group].icon} {GROUP_LABELS[group].label}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                     {CHECKLIST_ITEMS.filter(i => i.group === group).map(item => {
@@ -202,7 +216,7 @@ const RetourCheckModal = ({ reservation, client, vehicle, onClose, onConfirm }) 
                             border: `1.5px solid ${ok ? '#86EFAC' : '#FECACA'}`,
                             background: ok ? '#F0FFF4' : '#FFF5F5', transition: 'all 0.15s',
                           }}>
-                          <span style={{ fontSize: '16px' }}>{item.icon}</span>
+                          <span style={{ color: ok ? GREEN : RED, display: 'flex', flexShrink: 0 }}>{item.icon}</span>
                           <span style={{ flex: 1, fontSize: '12.5px', fontWeight: '600', color: ok ? '#166534' : RED }}>{item.label}</span>
                           <div style={{
                             width: '24px', height: '24px', borderRadius: '50%', flexShrink: 0,
@@ -239,14 +253,14 @@ const RetourCheckModal = ({ reservation, client, vehicle, onClose, onConfirm }) 
                       color: markType === type ? cfg.color : '#64748B',
                       fontWeight: '800', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                     }}>
-                    <span style={{ fontSize: '16px' }}>{cfg.emoji}</span> {cfg.label}
+                    <span style={{ fontSize: '16px' }}>{cfg.symbol}</span> {cfg.label}
                   </button>
                 ))}
               </div>
 
               <div style={{ background: '#F8FAFC', borderRadius: '16px', padding: '16px', marginBottom: '16px', border: '1.5px dashed #DDE3ED' }}>
-                <div style={{ fontSize: '12px', color: '#64748B', textAlign: 'center', marginBottom: '12px', fontWeight: '600' }}>
-                  Cliquez sur une zone pour marquer · Recliquez pour effacer
+                <div style={{ fontSize: '12px', color: '#64748B', textAlign: 'center', marginBottom: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  <Eye size={13} /> Cliquez sur une zone pour marquer · Recliquez pour effacer
                 </div>
                 <div style={{ position: 'relative', maxWidth: '420px', margin: '0 auto' }}>
                   <svg viewBox="0 0 400 220" style={{ width: '100%', height: 'auto' }}>
@@ -306,18 +320,22 @@ const RetourCheckModal = ({ reservation, client, vehicle, onClose, onConfirm }) 
 
               {marks.length > 0 && (
                 <div style={{ background: '#FEF9C3', border: '1px solid #FDE68A', borderRadius: '10px', padding: '12px', marginBottom: '16px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '800', color: '#92580A', marginBottom: '8px' }}>⚠️ {marks.length} dommage(s)</div>
+                  <div style={{ fontSize: '12px', fontWeight: '800', color: '#92580A', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <AlertTriangle size={13} /> {marks.length} dommage(s)
+                  </div>
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                     {marks.map((m, i) => {
                       const cfg = CAR_MARKS[m.type];
-                      return <span key={i} style={{ background: 'white', border: `1px solid ${cfg.color}`, color: cfg.color, padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>{cfg.emoji} {m.label}</span>;
+                      return <span key={i} style={{ background: 'white', border: `1px solid ${cfg.color}`, color: cfg.color, padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' }}>{cfg.symbol} {m.label}</span>;
                     })}
                   </div>
                 </div>
               )}
 
               <div>
-                <div style={{ fontSize: '12px', fontWeight: '800', color: '#64748B', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>État général</div>
+                <div style={{ fontSize: '12px', fontWeight: '800', color: '#64748B', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Shield size={13} /> État général
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px' }}>
                   {ETAT_OPTIONS.map(opt => (
                     <div key={opt.value} onClick={() => setEtatGeneral(opt.value)}
@@ -326,7 +344,7 @@ const RetourCheckModal = ({ reservation, client, vehicle, onClose, onConfirm }) 
                         border: `2px solid ${etatGeneral === opt.value ? opt.color : '#DDE3ED'}`,
                         background: etatGeneral === opt.value ? opt.bg : 'white', transition: 'all 0.15s',
                       }}>
-                      <div style={{ fontSize: '20px', marginBottom: '4px' }}>{opt.emoji}</div>
+                      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px' }}>{opt.icon}</div>
                       <div style={{ fontSize: '11px', fontWeight: '700', color: etatGeneral === opt.value ? opt.color : '#64748B' }}>{opt.label}</div>
                     </div>
                   ))}
@@ -344,9 +362,16 @@ const RetourCheckModal = ({ reservation, client, vehicle, onClose, onConfirm }) 
                 borderRadius: '16px', padding: '20px', textAlign: 'center', marginBottom: '20px',
               }}>
                 <div style={{ fontSize: '56px', fontWeight: '900', color: score >= 80 ? GREEN : score >= 60 ? AMBER : RED, lineHeight: 1 }}>{score}</div>
-                <div style={{ fontSize: '13px', fontWeight: '700', color: score >= 80 ? GREEN : score >= 60 ? AMBER : RED, marginBottom: '4px', marginTop: '4px' }}>Score de Retour / 100</div>
-                <div style={{ fontSize: '12px', color: '#64748B' }}>
-                  {score >= 80 ? '✅ Excellent retour' : score >= 60 ? '⚠️ Retour acceptable avec réserves' : '🔴 Retour avec dommages — à signaler'}
+                <div style={{ fontSize: '13px', fontWeight: '700', color: score >= 80 ? GREEN : score >= 60 ? AMBER : RED, marginBottom: '4px', marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  <BarChart2 size={14} /> Score de Retour / 100
+                </div>
+                <div style={{ fontSize: '12px', color: '#64748B', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                  {score >= 80
+                    ? <><CheckCircle size={13} color={GREEN} /> Excellent retour</>
+                    : score >= 60
+                    ? <><AlertTriangle size={13} color={AMBER} /> Retour acceptable avec réserves</>
+                    : <><Zap size={13} color={RED} /> Retour avec dommages — à signaler</>
+                  }
                 </div>
                 <div style={{ background: '#F0F2F5', borderRadius: '8px', height: '10px', marginTop: '12px', overflow: 'hidden' }}>
                   <div style={{ height: '100%', width: `${score}%`, background: score >= 80 ? GREEN : score >= 60 ? AMBER : RED, borderRadius: '8px', transition: 'width 0.6s' }}/>
@@ -355,12 +380,12 @@ const RetourCheckModal = ({ reservation, client, vehicle, onClose, onConfirm }) 
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '16px' }}>
                 {[
-                  { label: 'Checklist', value: `${CHECKLIST_ITEMS.length - nbPbChecklist}/${CHECKLIST_ITEMS.length}`, ok: nbPbChecklist === 0, emoji: '✓' },
-                  { label: 'Dommages',  value: nbMarks,                                                                ok: nbMarks === 0,        emoji: nbMarks === 0 ? '✓' : '⚠' },
-                  { label: 'État',      value: ETAT_OPTIONS.find(o => o.value === etatGeneral)?.label,                ok: etatGeneral === 'excellent' || etatGeneral === 'bon', emoji: ETAT_OPTIONS.find(o => o.value === etatGeneral)?.emoji },
+                  { label: 'Checklist', value: `${CHECKLIST_ITEMS.length - nbPbChecklist}/${CHECKLIST_ITEMS.length}`, ok: nbPbChecklist === 0, icon: <FileCheck size={18} /> },
+                  { label: 'Dommages',  value: nbMarks, ok: nbMarks === 0, icon: nbMarks === 0 ? <CheckCircle size={18} /> : <AlertTriangle size={18} /> },
+                  { label: 'État',      value: ETAT_OPTIONS.find(o => o.value === etatGeneral)?.label, ok: etatGeneral === 'excellent' || etatGeneral === 'bon', icon: ETAT_OPTIONS.find(o => o.value === etatGeneral)?.icon },
                 ].map(item => (
                   <div key={item.label} style={{ textAlign: 'center', padding: '14px', borderRadius: '12px', background: item.ok ? '#F0FFF4' : '#FFF5F5', border: `1.5px solid ${item.ok ? '#86EFAC' : '#FECACA'}` }}>
-                    <div style={{ fontSize: '20px', marginBottom: '4px' }}>{item.emoji}</div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '6px', color: item.ok ? GREEN : RED }}>{item.icon}</div>
                     <div style={{ fontWeight: '800', fontSize: '15px', color: item.ok ? GREEN : RED }}>{item.value}</div>
                     <div style={{ fontSize: '11px', color: '#64748B', fontWeight: '600' }}>{item.label}</div>
                   </div>
@@ -368,14 +393,18 @@ const RetourCheckModal = ({ reservation, client, vehicle, onClose, onConfirm }) 
               </div>
 
               {kilometrage && (
-                <div style={{ background: '#EFF4FB', borderRadius: '10px', padding: '12px 16px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '13px', color: '#64748B', fontWeight: '600' }}>📍 Kilométrage retour</span>
+                <div style={{ background: '#EFF4FB', borderRadius: '10px', padding: '12px 16px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', color: '#64748B', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Gauge size={14} /> Kilométrage retour
+                  </span>
                   <span style={{ fontWeight: '800', color: NAVY, fontSize: '15px' }}>{parseInt(kilometrage).toLocaleString()} km</span>
                 </div>
               )}
 
               <div>
-                <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748B', display: 'block', marginBottom: '8px' }}>📝 Notes & observations</label>
+                <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                  <StickyNote size={13} /> Notes & observations
+                </label>
                 <textarea value={notes} onChange={e => setNotes(e.target.value)}
                   placeholder="Décrivez l'état général, les dommages observés, remarques du client..."
                   rows={4}
@@ -387,17 +416,17 @@ const RetourCheckModal = ({ reservation, client, vehicle, onClose, onConfirm }) 
 
         {/* Footer */}
         <div style={{ padding: '16px 24px', borderTop: '1px solid #F0F2F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC' }}>
-          <div style={{ fontSize: '12px', color: '#64748B', fontWeight: '600' }}>
-            Étape {step}/{steps.length}
-            {step === 1 && nbPbChecklist > 0 && <span style={{ color: AMBER, marginLeft: '8px' }}>⚠️ {nbPbChecklist} point(s)</span>}
-            {step === 2 && nbMarks > 0 && <span style={{ color: RED, marginLeft: '8px' }}>🔴 {nbMarks} dommage(s)</span>}
+          <div style={{ fontSize: '12px', color: '#64748B', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <BarChart2 size={13} /> Étape {step}/{steps.length}
+            {step === 1 && nbPbChecklist > 0 && <span style={{ color: AMBER, marginLeft: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={12} /> {nbPbChecklist} point(s)</span>}
+            {step === 2 && nbMarks > 0 && <span style={{ color: RED, marginLeft: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}><Zap size={12} /> {nbMarks} dommage(s)</span>}
             {step === 3 && <span style={{ color: score >= 80 ? GREEN : AMBER, marginLeft: '8px', fontWeight: '800' }}>Score: {score}/100</span>}
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             {step > 1 && (
               <button onClick={() => setStep(s => s - 1)}
-                style={{ padding: '10px 20px', background: 'white', color: NAVY, border: `1.5px solid ${NAVY}`, borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '13px' }}>
-                ← Retour
+                style={{ padding: '10px 20px', background: 'white', color: NAVY, border: `1.5px solid ${NAVY}`, borderRadius: '10px', cursor: 'pointer', fontWeight: '700', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ArrowLeft size={14} /> Retour
               </button>
             )}
             {step < 3 ? (
@@ -408,7 +437,7 @@ const RetourCheckModal = ({ reservation, client, vehicle, onClose, onConfirm }) 
             ) : (
               <button onClick={handleSubmit} disabled={submitting}
                 style={{ padding: '10px 24px', background: GREEN, color: 'white', border: 'none', borderRadius: '10px', cursor: submitting ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', opacity: submitting ? 0.7 : 1 }}>
-                {submitting ? '⏳ Enregistrement...' : <><Send size={15} /> Valider l'inspection</>}
+                {submitting ? <><Zap size={15} /> Enregistrement...</> : <><Send size={15} /> Valider l'inspection</>}
               </button>
             )}
           </div>
