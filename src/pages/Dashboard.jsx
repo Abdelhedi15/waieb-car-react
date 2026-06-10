@@ -6,7 +6,7 @@ import {
 import {
   LayoutDashboard, Car, Tag, Users, CalendarCheck,
   Banknote, AlertTriangle, ChevronDown,
-  TrendingUp, RotateCcw, CreditCard, UserCheck, X, Star,
+  TrendingUp, RotateCcw, UserCheck, X, Star, ClipboardList,
 } from 'lucide-react';
 import api from '../api/axios';
 
@@ -46,8 +46,7 @@ const remiseToPts = (remiseDT) => {
   return Math.round(r * 20);
 };
 
-// Helper: reservation has damage (accident OR bad return inspection)
-const hasDamage = (r) => (r.a_accident || r.etat_retour === 'dommages') || r.etat_retour === 'dommages';
+const hasDamage = (r) => r.a_accident || r.etat_retour === 'dommages';
 
 const Dashboard = () => {
   const [reservations, setReservations] = useState([]);
@@ -79,12 +78,32 @@ const Dashboard = () => {
     finally { setLoading(false); }
   };
 
-  const currentYear = new Date().getFullYear();
+  const currentYear  = new Date().getFullYear();
   const currentMonth = new Date().getMonth();
   const months = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
 
-  const activeVehicles = vehicles.filter(v => !SOLD_STATUTS.includes(v.statut));
+  // ── Inspections requises (aujourd'hui + demain, confirmées, pas encore inspectées)
+  const today  = new Date(); today.setHours(0,0,0,0);
+  const demain = new Date(today); demain.setDate(today.getDate() + 1);
 
+  const reservationsAInspecter = reservations.filter(r => {
+    if (r.statut !== 'confirmée' || r.inspection_retour_faite) return false;
+    const fin = new Date(r.date_fin); fin.setHours(0,0,0,0);
+    return fin >= today && fin <= demain;
+  });
+  const nbAInspecter = reservationsAInspecter.length;
+
+  // ── Inspections terminées (ce mois)
+  const inspectionsTerminees = reservations.filter(r => {
+    if (!r.inspection_retour_faite) return false;
+    const d = new Date(r.date_fin);
+    return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+  });
+  const avgScore = inspectionsTerminees.length > 0
+    ? Math.round(inspectionsTerminees.reduce((s, r) => s + (r.score_retour || 0), 0) / inspectionsTerminees.length)
+    : null;
+
+  const activeVehicles  = vehicles.filter(v => !SOLD_STATUTS.includes(v.statut));
   const vehiclesAVendre = activeVehicles
     .filter(v => getAge(v.date_acquisition) >= 3.5)
     .sort((a, b) => getAge(b.date_acquisition) - getAge(a.date_acquisition));
@@ -94,7 +113,7 @@ const Dashboard = () => {
     activeVehicles.forEach(v => {
       const d = getVendreDate(v.date_acquisition);
       if (!d) return;
-      const key = `${d.year}-${String(d.month + 1).padStart(2,'0')}`;
+      const key   = `${d.year}-${String(d.month + 1).padStart(2,'0')}`;
       const label = `${months[d.month]} ${d.year}`;
       if (!map[key]) map[key] = { key, label, nb: 0, vehicules: [] };
       map[key].nb++;
@@ -111,8 +130,9 @@ const Dashboard = () => {
     return {
       mois: m,
       reservations: monthRes.length,
-      accidents: monthRes.filter(r => hasDamage(r)).length,
-      contrats: contracts.filter(ct => {
+      accidents:    monthRes.filter(r => hasDamage(r)).length,
+      inspections:  monthRes.filter(r => r.inspection_retour_faite).length,
+      contrats:     contracts.filter(ct => {
         const d = new Date(ct.date_contrat);
         return d.getFullYear() === currentYear && d.getMonth() === i;
       }).length,
@@ -120,11 +140,11 @@ const Dashboard = () => {
   });
 
   const clientsDepenses = clients.map(c => {
-    const clientResIds = reservations.filter(r => r.client === c.id).map(r => r.id);
+    const clientResIds   = reservations.filter(r => r.client === c.id).map(r => r.id);
     const totalPaiements = payments
       .filter(p => clientResIds.includes(p.reservation))
       .reduce((s, p) => s + parseFloat(p.montant || 0), 0);
-    const totalFallback = reservations
+    const totalFallback  = reservations
       .filter(r => r.client === c.id)
       .reduce((s, r) => s + parseFloat(r.montant_total || 0), 0);
     return {
@@ -143,47 +163,54 @@ const Dashboard = () => {
     accidents:    reservations.filter(r => r.client === c.id && hasDamage(r)).length,
   })).filter(c => c.reservations > 0).sort((a, b) => b.reservations - a.reservations).slice(0, 8);
 
-  const totalPtsUtilises = clients.reduce((s, c) => s + (parseInt(c.points_utilises) || 0), 0);
-
-  const ptsEchangesParMois = {};
+  const totalPtsUtilises     = clients.reduce((s, c) => s + (parseInt(c.points_utilises) || 0), 0);
+  const ptsEchangesParMois   = {};
   reservations.forEach(r => {
     const remise = parseFloat(r.remise_fidelite || 0);
     if (remise <= 0) return;
     const d = new Date(r.date_debut);
     if (d.getFullYear() !== currentYear) return;
     const m = d.getMonth();
-    const pts = remiseToPts(remise);
-    ptsEchangesParMois[m] = (ptsEchangesParMois[m] || 0) + pts;
+    ptsEchangesParMois[m] = (ptsEchangesParMois[m] || 0) + remiseToPts(remise);
   });
-
   const hasMonthlyExchangeData = Object.keys(ptsEchangesParMois).length > 0;
-  const fallbackMonth = currentMonth;
 
   const pointsFideliteData = months.map((m, i) => {
-    const monthRes = reservations.filter(r => {
+    const monthRes  = reservations.filter(r => {
       const d = new Date(r.date_debut);
       return d.getFullYear() === currentYear && d.getMonth() === i;
     });
-    const ptsGagnes = monthRes
-      .filter(r => r.statut === 'confirmée' || r.statut === 'terminée')
-      .length * 100;
-    let ptsEchanges = ptsEchangesParMois[i] || 0;
-    if (!hasMonthlyExchangeData && i === fallbackMonth && totalPtsUtilises > 0) {
-      ptsEchanges = totalPtsUtilises;
-    }
+    const ptsGagnes = monthRes.filter(r => r.statut === 'confirmée' || r.statut === 'terminée').length * 100;
+    let   ptsEchanges = ptsEchangesParMois[i] || 0;
+    if (!hasMonthlyExchangeData && i === currentMonth && totalPtsUtilises > 0) ptsEchanges = totalPtsUtilises;
     return { mois: m, ptsGagnes, ptsEchanges };
   });
 
   const totalPtsGagnes = pointsFideliteData.reduce((s, d) => s + d.ptsGagnes, 0);
-
   const tauxOccupation = vehicles.map(v => ({
-    name: `${v.marque} ${v.modele}`.substring(0, 12),
+    name:         `${v.marque} ${v.modele}`.substring(0, 12),
     reservations: reservations.filter(r => r.vehicle === v.id).length,
     accidents:    reservations.filter(r => r.vehicle === v.id && hasDamage(r)).length,
   }));
 
   const totalRevenus   = payments.filter(p => p.statut === 'payé').reduce((s, p) => s + parseFloat(p.montant), 0);
   const totalAccidents = reservations.filter(r => hasDamage(r)).length;
+
+  // ── Inspections par mois (pour graphique)
+  const inspectionsParMoisData = months.map((m, i) => {
+    const monthRes = reservations.filter(r => {
+      const d = new Date(r.date_fin);
+      return d.getFullYear() === currentYear && d.getMonth() === i;
+    });
+    return {
+      mois:        m,
+      inspectees:  monthRes.filter(r => r.inspection_retour_faite).length,
+      nonInspectees: monthRes.filter(r => !r.inspection_retour_faite && r.statut === 'terminée').length,
+      avgScore:    monthRes.filter(r => r.inspection_retour_faite && r.score_retour).length > 0
+        ? Math.round(monthRes.filter(r => r.inspection_retour_faite && r.score_retour).reduce((s, r) => s + r.score_retour, 0) / monthRes.filter(r => r.inspection_retour_faite && r.score_retour).length)
+        : 0,
+    };
+  });
 
   const VendreTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
@@ -192,9 +219,7 @@ const Dashboard = () => {
       <div style={{ background: 'white', border: '1px solid #DDE3ED', borderRadius: '10px', padding: '10px 14px', fontSize: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
         <div style={{ fontWeight: '800', color: NAVY, marginBottom: '6px' }}>{label}</div>
         <div style={{ color: RED, fontWeight: '700', marginBottom: '4px' }}>🔴 {payload[0].value} véhicule(s) à vendre</div>
-        {entry?.vehicules?.slice(0, 4).map((v, i) => (
-          <div key={i} style={{ color: '#64748B', fontSize: '11px' }}>• {v}</div>
-        ))}
+        {entry?.vehicules?.slice(0, 4).map((v, i) => <div key={i} style={{ color: '#64748B', fontSize: '11px' }}>• {v}</div>)}
         {entry?.vehicules?.length > 4 && <div style={{ color: '#94A3B8', fontSize: '11px' }}>+{entry.vehicules.length - 4} autres</div>}
       </div>
     );
@@ -205,25 +230,22 @@ const Dashboard = () => {
     return (
       <div style={{ background: 'white', border: '1px solid #DDE3ED', borderRadius: '10px', padding: '10px 14px', fontSize: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
         <div style={{ fontWeight: '800', color: NAVY, marginBottom: '6px' }}>{label}</div>
-        {payload.map((p, i) => (
-          <div key={i} style={{ color: p.color, fontWeight: '700' }}>
-            {p.name} : {p.value} pts
-          </div>
-        ))}
+        {payload.map((p, i) => <div key={i} style={{ color: p.color, fontWeight: '700' }}>{p.name} : {p.value} pts</div>)}
       </div>
     );
   };
 
   const chartOptions = [
-    { value: 'depenses',      label: 'Revenus encaissés',            desc: 'Montants encaissés par client (DT)',              icon: <Banknote      size={14} /> },
-    { value: 'vendre_mois',   label: 'Véhicules à vendre par mois',  desc: 'Nb de véhicules atteignant 3.5 ans par mois',     icon: <Tag           size={14} /> },
-    { value: 'activite',      label: 'Activité mensuelle',           desc: 'Réservations, contrats et accidents par mois',    icon: <TrendingUp    size={14} /> },
-    { value: 'points_mois',   label: 'Points fidélité par mois',     desc: 'Points gagnés et échangés chaque mois',           icon: <Star          size={14} /> },
-    { value: 'accidents',     label: 'Dommages & accidents par mois',desc: "Accidents déclarés + retours avec dommages",       icon: <AlertTriangle size={14} /> },
-    { value: 'occupation',    label: "Taux d'occupation véhicules",  desc: 'Réservations et dommages par véhicule',           icon: <Car           size={14} /> },
-    { value: 'fidelite',      label: 'Fidélité clients',             desc: 'Nombre de réservations par client',               icon: <UserCheck     size={14} /> },
-    { value: 'annulations',   label: 'Annulations clients',          desc: 'Réservations annulées par client',                icon: <X             size={14} /> },
-    { value: 'remplacements', label: 'Remplacements véhicules',      desc: 'Véhicules remplacés suite à incident par mois',   icon: <RotateCcw     size={14} /> },
+    { value: 'depenses',      label: 'Revenus encaissés',            desc: 'Montants encaissés par client (DT)',            icon: <Banknote      size={14} /> },
+    { value: 'vendre_mois',   label: 'Véhicules à vendre par mois',  desc: 'Nb de véhicules atteignant 3.5 ans par mois',   icon: <Tag           size={14} /> },
+    { value: 'activite',      label: 'Activité mensuelle',           desc: 'Réservations, contrats et dommages par mois',   icon: <TrendingUp    size={14} /> },
+    { value: 'inspections',   label: 'Inspections de retour',        desc: 'Inspections effectuées et scores moyens/mois',  icon: <ClipboardList size={14} /> },
+    { value: 'points_mois',   label: 'Points fidélité par mois',     desc: 'Points gagnés et échangés chaque mois',         icon: <Star          size={14} /> },
+    { value: 'accidents',     label: 'Dommages & accidents par mois',desc: 'Accidents déclarés + retours avec dommages',    icon: <AlertTriangle size={14} /> },
+    { value: 'occupation',    label: "Taux d'occupation véhicules",  desc: 'Réservations et dommages par véhicule',         icon: <Car           size={14} /> },
+    { value: 'fidelite',      label: 'Fidélité clients',             desc: 'Nombre de réservations par client',             icon: <UserCheck     size={14} /> },
+    { value: 'annulations',   label: 'Annulations clients',          desc: 'Réservations annulées par client',              icon: <X             size={14} /> },
+    { value: 'remplacements', label: 'Remplacements véhicules',      desc: 'Véhicules remplacés suite à incident par mois', icon: <RotateCcw     size={14} /> },
   ];
 
   const selected  = chartOptions.find(o => o.value === selectedChart);
@@ -267,7 +289,7 @@ const Dashboard = () => {
               <BarChart data={vendreParMoisData} margin={{ top: 10, right: 20, left: 0, bottom: 40 }}>
                 <CartesianGrid {...gridProps} />
                 <XAxis dataKey="label" tick={axisTick} angle={-30} textAnchor="end" interval={0} />
-                <YAxis tick={axisTick} allowDecimals={false} label={{ value: 'Nb véhicules', angle: -90, position: 'insideLeft', style: { fontSize: '11px', fill: '#64748B' } }} />
+                <YAxis tick={axisTick} allowDecimals={false} />
                 <Tooltip content={<VendreTooltip />} />
                 <Bar dataKey="nb" radius={[8,8,0,0]} name="Véhicules à vendre">
                   {vendreParMoisData.map((entry, i) => (
@@ -294,9 +316,79 @@ const Dashboard = () => {
               <Legend {...legStyle} />
               <Line type="monotone" dataKey="reservations" stroke={NAVY}   strokeWidth={2.5} dot={{ r: 5 }} name="Réservations" />
               <Line type="monotone" dataKey="contrats"     stroke={PURPLE} strokeWidth={2.5} dot={{ r: 5 }} name="Contrats" />
+              <Line type="monotone" dataKey="inspections"  stroke={GREEN}  strokeWidth={2.5} dot={{ r: 5 }} name="Inspections" />
               <Line type="monotone" dataKey="accidents"    stroke={RED}    strokeWidth={2.5} dot={{ r: 5 }} name="Dommages/Accidents" />
             </LineChart>
           </ResponsiveContainer>
+        );
+
+      case 'inspections':
+        return (
+          <div>
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              <div style={{ background: '#EDE9FE', border: '1px solid #C4B5FD', borderRadius: '8px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ClipboardList size={16} color={PURPLE} />
+                <div>
+                  <div style={{ fontWeight: '800', color: PURPLE, fontSize: '18px' }}>{reservations.filter(r => r.inspection_retour_faite).length}</div>
+                  <div style={{ fontSize: '11px', color: PURPLE, fontWeight: '600' }}>Total inspections effectuées</div>
+                </div>
+              </div>
+              {avgScore !== null && (
+                <div style={{ background: avgScore >= 80 ? '#DCFCE7' : avgScore >= 60 ? '#FEF9C3' : '#FEE2E2', border: '1px solid #86EFAC', borderRadius: '8px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Star size={16} color={avgScore >= 80 ? GREEN : avgScore >= 60 ? AMBER : RED} />
+                  <div>
+                    <div style={{ fontWeight: '800', color: avgScore >= 80 ? GREEN : avgScore >= 60 ? AMBER : RED, fontSize: '18px' }}>{avgScore}/100</div>
+                    <div style={{ fontSize: '11px', color: '#64748B', fontWeight: '600' }}>Score moyen ce mois</div>
+                  </div>
+                </div>
+              )}
+              {nbAInspecter > 0 && (
+                <div style={{ background: '#FEF3DC', border: '1px solid #FCD34D', borderRadius: '8px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertTriangle size={16} color={AMBER} />
+                  <div>
+                    <div style={{ fontWeight: '800', color: AMBER, fontSize: '18px' }}>{nbAInspecter}</div>
+                    <div style={{ fontSize: '11px', color: '#92580A', fontWeight: '600' }}>À inspecter aujourd'hui/demain</div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={inspectionsParMoisData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                <CartesianGrid {...gridProps} />
+                <XAxis dataKey="mois" tick={axisTick} />
+                <YAxis tick={axisTick} allowDecimals={false} />
+                <Tooltip contentStyle={tipStyle} />
+                <Legend {...legStyle} />
+                <Bar dataKey="inspectees"    fill={PURPLE} radius={[6,6,0,0]} name="Inspectées" />
+                <Bar dataKey="nonInspectees" fill={AMBER}  radius={[6,6,0,0]} name="Non inspectées (terminées)" />
+              </BarChart>
+            </ResponsiveContainer>
+            {/* Liste des réservations à inspecter */}
+            {reservationsAInspecter.length > 0 && (
+              <div style={{ marginTop: '16px', background: '#FAF5FF', borderRadius: '10px', padding: '14px', border: '1px solid #E9D5FF' }}>
+                <div style={{ fontWeight: '800', color: PURPLE, fontSize: '13px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ClipboardList size={14} /> Inspections urgentes
+                </div>
+                {reservationsAInspecter.map(r => {
+                  const cl = clients.find(c => c.id === r.client);
+                  const vh = vehicles.find(v => v.id === r.vehicle);
+                  const fin = new Date(r.date_fin); fin.setHours(0,0,0,0);
+                  const isToday = fin.getTime() === today.getTime();
+                  return (
+                    <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #E9D5FF', fontSize: '12.5px' }}>
+                      <div>
+                        <strong style={{ color: NAVY }}>Rés. #{r.id}</strong>
+                        <span style={{ marginLeft: '8px', color: '#64748B' }}>{vh?.marque} {vh?.modele} · {cl?.prenom} {cl?.nom}</span>
+                      </div>
+                      <span style={{ background: isToday ? '#FEE2E2' : '#FEF9C3', color: isToday ? RED : AMBER, padding: '2px 8px', borderRadius: '6px', fontWeight: '700', fontSize: '11px' }}>
+                        {isToday ? '🔴 Aujourd\'hui' : '🟡 Demain'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         );
 
       case 'points_mois':
@@ -327,7 +419,7 @@ const Dashboard = () => {
             </div>
             {!hasMonthlyExchangeData && totalPtsUtilises > 0 && (
               <div style={{ background: '#FEF3DC', border: '1px solid #FCD34D', borderRadius: '8px', padding: '8px 14px', marginBottom: '12px', fontSize: '12px', color: '#92580A' }}>
-                ℹ️ Les {totalPtsUtilises} pts échangés sont affichés sur le mois courant ({months[currentMonth]}) — les dates précises d'échange ne sont pas encore tracées par mois.
+                ℹ️ Les {totalPtsUtilises} pts échangés sont affichés sur le mois courant ({months[currentMonth]}).
               </div>
             )}
             <ResponsiveContainer width="100%" height={280}>
@@ -447,34 +539,38 @@ const Dashboard = () => {
         <LayoutDashboard size={22} color={NAVY} /> Tableau de Bord
       </h1>
 
-      {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: '12px', marginBottom: '20px' }}>
+      {/* ── Stat cards — 7 cartes */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: '10px', marginBottom: '20px' }}>
         {[
-          { label: 'Véhicules',    value: activeVehicles.length,           color: NAVY,   bg: '#EFF4FB', icon: <Car size={19} />,           highlight: false },
-          { label: 'À vendre',     value: vehiclesAVendre.length,          color: vehiclesAVendre.length > 0 ? RED : GREEN, bg: vehiclesAVendre.length > 0 ? '#FEE2E2' : '#DCFCE7', icon: <Tag size={19} />, highlight: vehiclesAVendre.length > 0 },
-          { label: 'Clients',      value: clients.length,                  color: GREEN,  bg: '#DCFCE7', icon: <Users size={19} />,         highlight: false },
-          { label: 'Réservations', value: reservations.length,             color: AMBER,  bg: '#FEF3DC', icon: <CalendarCheck size={19} />, highlight: false },
-          { label: 'Revenus',      value: `${totalRevenus.toFixed(0)} DT`, color: PURPLE, bg: '#F3EEFF', icon: <Banknote size={19} />,      highlight: false },
-          { label: 'Dommages',     value: totalAccidents,                  color: totalAccidents > 0 ? RED : GREEN, bg: totalAccidents > 0 ? '#FEE2E2' : '#DCFCE7', icon: <AlertTriangle size={19} />, highlight: totalAccidents > 0 },
+          { label: 'Véhicules',    value: activeVehicles.length,           color: NAVY,   bg: '#EFF4FB', icon: <Car size={17} />,           highlight: false },
+          { label: 'À vendre',     value: vehiclesAVendre.length,          color: vehiclesAVendre.length > 0 ? RED : GREEN, bg: vehiclesAVendre.length > 0 ? '#FEE2E2' : '#DCFCE7', icon: <Tag size={17} />, highlight: vehiclesAVendre.length > 0 },
+          { label: 'Clients',      value: clients.length,                  color: GREEN,  bg: '#DCFCE7', icon: <Users size={17} />,         highlight: false },
+          { label: 'Réservations', value: reservations.length,             color: AMBER,  bg: '#FEF3DC', icon: <CalendarCheck size={17} />, highlight: false },
+          { label: 'Revenus',      value: `${totalRevenus.toFixed(0)} DT`, color: PURPLE, bg: '#F3EEFF', icon: <Banknote size={17} />,      highlight: false },
+          { label: 'Dommages',     value: totalAccidents,                  color: totalAccidents > 0 ? RED : GREEN, bg: totalAccidents > 0 ? '#FEE2E2' : '#DCFCE7', icon: <AlertTriangle size={17} />, highlight: totalAccidents > 0 },
+          { label: 'À inspecter',  value: nbAInspecter,                    color: nbAInspecter > 0 ? PURPLE : GREEN, bg: nbAInspecter > 0 ? '#F3EEFF' : '#DCFCE7', icon: <ClipboardList size={17} />, highlight: nbAInspecter > 0 },
         ].map(s => (
           <div key={s.label} className="card" style={{
-            textAlign: 'center', padding: '16px 8px', position: 'relative',
-            border: s.highlight ? `1.5px solid ${RED}` : '1px solid #DDE3ED',
-            background: s.highlight ? '#FFF5F5' : 'white',
-          }}>
+            textAlign: 'center', padding: '14px 6px', position: 'relative',
+            border: s.highlight ? `1.5px solid ${s.color}` : '1px solid #DDE3ED',
+            background: s.highlight ? (s.color === PURPLE ? '#FAF5FF' : '#FFF5F5') : 'white',
+            cursor: s.label === 'À inspecter' && nbAInspecter > 0 ? 'pointer' : 'default',
+          }}
+          onClick={() => s.label === 'À inspecter' && nbAInspecter > 0 && setSelectedChart('inspections')}
+          >
             {s.highlight && (
-              <div style={{ position: 'absolute', top: '-7px', right: '-7px', background: RED, color: 'white', borderRadius: '50%', width: '18px', height: '18px', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900' }}>!</div>
+              <div style={{ position: 'absolute', top: '-7px', right: '-7px', background: s.color, color: 'white', borderRadius: '50%', width: '18px', height: '18px', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900' }}>!</div>
             )}
-            <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: s.bg, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: s.bg, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 8px' }}>
               {s.icon}
             </div>
-            <div style={{ fontSize: '20px', fontWeight: '800', color: s.color, lineHeight: 1 }}>{s.value}</div>
-            <div style={{ color: '#64748B', fontSize: '11px', marginTop: '4px', fontWeight: '600' }}>{s.label}</div>
+            <div style={{ fontSize: '18px', fontWeight: '800', color: s.color, lineHeight: 1 }}>{s.value}</div>
+            <div style={{ color: '#64748B', fontSize: '10px', marginTop: '4px', fontWeight: '600' }}>{s.label}</div>
           </div>
         ))}
       </div>
 
-      {/* À vendre alert */}
+      {/* ── À vendre alert */}
       {vehiclesAVendre.length > 0 && (
         <div style={{ background: '#FEF3DC', border: '1.5px solid #E8A020', borderRadius: '12px', padding: '14px 18px', marginBottom: '22px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
@@ -508,15 +604,46 @@ const Dashboard = () => {
             })}
             {vehiclesAVendre.length > 2 && (
               <div style={{ background: '#FEF3DC', border: '1px solid #FCD34D', borderRadius: '8px', padding: '8px 14px', color: '#92580A', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Tag size={14} />
-                +{vehiclesAVendre.length - 2} autres véhicules
+                <Tag size={14} /> +{vehiclesAVendre.length - 2} autres véhicules
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Chart with dropdown */}
+      {/* ── Inspections urgentes alert */}
+      {nbAInspecter > 0 && (
+        <div style={{ background: 'linear-gradient(135deg, #4C1D95, #6D28D9)', borderRadius: '12px', padding: '14px 18px', marginBottom: '22px', cursor: 'pointer' }}
+          onClick={() => setSelectedChart('inspections')}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <ClipboardList size={20} color="white" />
+            <span style={{ fontWeight: '800', color: 'white', fontSize: '14px' }}>
+              🔍 {nbAInspecter} inspection(s) requise(s) aujourd'hui / demain
+            </span>
+            <button style={{ marginLeft: 'auto', padding: '5px 12px', background: 'white', color: PURPLE, border: 'none', borderRadius: '7px', fontSize: '11px', fontWeight: '700', cursor: 'pointer' }}>
+              Voir détails →
+            </button>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+            {reservationsAInspecter.map(r => {
+              const cl = clients.find(c => c.id === r.client);
+              const vh = vehicles.find(v => v.id === r.vehicle);
+              const fin = new Date(r.date_fin); fin.setHours(0,0,0,0);
+              const isToday = fin.getTime() === today.getTime();
+              return (
+                <div key={r.id} style={{ background: 'rgba(255,255,255,0.15)', borderRadius: '8px', padding: '6px 12px', color: 'white', fontSize: '12px', fontWeight: '600' }}>
+                  <span style={{ background: isToday ? RED : AMBER, padding: '1px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: '800', marginRight: '6px' }}>
+                    {isToday ? 'AUJOURD\'HUI' : 'DEMAIN'}
+                  </span>
+                  Rés. #{r.id} · {vh?.marque} {vh?.modele} · {cl?.prenom} {cl?.nom}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Chart with dropdown */}
       <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: '22px' }}>
         <div style={{ padding: '16px 22px', background: NAVY, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
@@ -555,7 +682,7 @@ const Dashboard = () => {
         <div style={{ padding: '22px' }}>{renderChart()}</div>
       </div>
 
-      {/* Top Véhicules + Top Clients */}
+      {/* ── Top Véhicules + Top Clients */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
         <div className="card">
           <h3 style={{ color: NAVY, marginBottom: '16px', fontSize: '15px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
