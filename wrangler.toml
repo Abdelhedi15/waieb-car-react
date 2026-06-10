@@ -1,0 +1,10 @@
+name = "waieb-car-react"
+compatibility_date = "2024-01-01"
+main = "./build/index.html"
+
+[site]
+bucket = "./build"
+
+[assets]
+directory = "./build"
+not_found_handling = "single-page-application"
