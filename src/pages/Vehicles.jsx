@@ -4,6 +4,7 @@ import {
   Fuel, Users, Gauge, Palette, AlertTriangle,
   CheckCircle, Wrench, Shield, Tag, XCircle,
   Filter, SlidersHorizontal, Key, Settings,
+  X, Calendar, User, TrendingUp, Clock, ChevronRight, Eye,
 } from 'lucide-react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
@@ -65,7 +66,7 @@ const getCarPhoto = (v) => {
     if (p.startsWith('http')) return p;
     return `https://web-production-e6e97.up.railway.app${p}`;
   }
-  return CAR_PHOTOS[(v?.marque||'').toLowerCase()] || CAR_PHOTOS.default;
+  return CAR_PHOTOS[(v?.marque || '').toLowerCase()] || CAR_PHOTOS.default;
 };
 
 const CATEGORIES = [
@@ -120,6 +121,309 @@ const EMPTY_FORM = {
   kilometrage:'', etat_carrosserie:'excellent', notes:'',
 };
 
+// ─────────────────────────────────────────────────────────────
+// RAPPORT ÉTAT — helpers & sub-components
+// ─────────────────────────────────────────────────────────────
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+const nb = (v) => parseInt(v || 0);
+
+const parseZones = (raw) => {
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch { return []; }
+};
+
+const etatLabel = (e) => ({
+  excellent: { label: 'Excellent',        bg: '#DCFCE7', color: '#16A34A' },
+  defauts:   { label: 'Défauts mineurs',  bg: '#FEF9C3', color: '#D97706' },
+  dommages:  { label: 'Dommages',         bg: '#FEE2E2', color: '#DC2626' },
+  sinistre:  { label: 'Sinistre',         bg: '#FEE2E2', color: '#991B1B' },
+}[e] || { label: e || '—', bg: '#F1F5F9', color: '#64748B' });
+
+const scoreBadge = (score) => {
+  const s = nb(score);
+  if (s >= 80) return { bg: '#DCFCE7', color: '#16A34A' };
+  if (s >= 50) return { bg: '#FEF9C3', color: '#D97706' };
+  return            { bg: '#FEE2E2', color: '#DC2626' };
+};
+
+const ZoneChip = ({ zones, color, label }) => {
+  if (!zones || zones.length === 0) return null;
+  return (
+    <span style={{ background: color + '22', color, fontSize:'10.5px', fontWeight:'700',
+      padding:'2px 8px', borderRadius:'8px', display:'inline-flex', gap:'4px', alignItems:'center' }}>
+      {label}: {zones.length}
+    </span>
+  );
+};
+
+const RentalRow = ({ r, idx }) => {
+  const bosses    = parseZones(r.bosses_retour);
+  const eraflures = parseZones(r.eraflures_retour);
+  const etatAv    = etatLabel(r.etat_depart || 'excellent');
+  const etatAp    = etatLabel(r.etat_retour || null);
+  const score     = r.score_retour != null ? scoreBadge(r.score_retour) : null;
+  const hasIssue  = r.a_accident || bosses.length > 0 || eraflures.length > 0 || (r.score_retour != null && nb(r.score_retour) < 70);
+
+  return (
+    <div style={{
+      border: `1.5px solid ${hasIssue ? '#FECACA' : '#E2E8F0'}`,
+      borderRadius: '10px', marginBottom: '10px', overflow: 'hidden',
+      background: hasIssue ? '#FFFAFA' : 'white',
+    }}>
+      <div style={{
+        display:'flex', justifyContent:'space-between', alignItems:'center',
+        padding:'9px 14px', background: hasIssue ? '#FFF5F5' : '#F8FAFC',
+        borderBottom: '1px solid #F1F5F9',
+      }}>
+        <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+          <span style={{ fontWeight:'800', fontSize:'11px', color:'#1B3A6B',
+            background:'#EFF4FB', borderRadius:'6px', padding:'2px 7px' }}>
+            #{idx + 1}
+          </span>
+          <Calendar size={12} color="#64748B" />
+          <span style={{ fontSize:'12px', fontWeight:'700', color:'#1A2535' }}>
+            {fmtDate(r.date_debut)} → {fmtDate(r.date_fin)}
+          </span>
+        </div>
+        <div style={{ display:'flex', gap:'5px', alignItems:'center' }}>
+          {r.a_accident && (
+            <span style={{ background:'#FEE2E2', color:'#DC2626', padding:'2px 8px', borderRadius:'8px', fontSize:'10.5px', fontWeight:'700' }}>
+              ⚠ Accident
+            </span>
+          )}
+          {r.inspection_retour_faite ? (
+            <span style={{ background:'#DCFCE7', color:'#16A34A', padding:'2px 8px', borderRadius:'8px', fontSize:'10.5px', fontWeight:'700' }}>
+              ✓ Inspecté
+            </span>
+          ) : (
+            <span style={{ background:'#FEF9C3', color:'#D97706', padding:'2px 8px', borderRadius:'8px', fontSize:'10.5px', fontWeight:'700' }}>
+              En cours
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div style={{ padding:'11px 14px' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 20px 1fr', gap:'6px', alignItems:'center', marginBottom:'8px' }}>
+          <div style={{ background:'#F8FAFC', borderRadius:'8px', padding:'7px 10px' }}>
+            <div style={{ fontSize:'9.5px', color:'#94A3B8', fontWeight:'700', marginBottom:'3px', textTransform:'uppercase', letterSpacing:'0.5px' }}>
+              État départ
+            </div>
+            <span style={{ background: etatAv.bg, color: etatAv.color, padding:'2px 8px', borderRadius:'8px', fontSize:'10.5px', fontWeight:'700' }}>
+              {etatAv.label}
+            </span>
+            {r.kilometrage_depart != null && (
+              <div style={{ fontSize:'10px', color:'#64748B', marginTop:'4px', display:'flex', gap:'3px', alignItems:'center' }}>
+                <Gauge size={9}/> {nb(r.kilometrage_depart).toLocaleString()} km
+              </div>
+            )}
+          </div>
+
+          <ChevronRight size={14} color="#94A3B8" style={{ margin:'0 auto' }} />
+
+          <div style={{ background:'#F8FAFC', borderRadius:'8px', padding:'7px 10px' }}>
+            <div style={{ fontSize:'9.5px', color:'#94A3B8', fontWeight:'700', marginBottom:'3px', textTransform:'uppercase', letterSpacing:'0.5px' }}>
+              État retour
+            </div>
+            {r.inspection_retour_faite ? (
+              <>
+                <span style={{ background: etatAp.bg, color: etatAp.color, padding:'2px 8px', borderRadius:'8px', fontSize:'10.5px', fontWeight:'700' }}>
+                  {etatAp.label}
+                </span>
+                {r.kilometrage_retour != null && (
+                  <div style={{ fontSize:'10px', color:'#64748B', marginTop:'4px', display:'flex', gap:'3px', alignItems:'center', flexWrap:'wrap' }}>
+                    <Gauge size={9}/> {nb(r.kilometrage_retour).toLocaleString()} km
+                    {r.kilometrage_depart != null && (
+                      <span style={{ color:'#7C3AED', fontWeight:'700' }}>
+                        (+{(nb(r.kilometrage_retour) - nb(r.kilometrage_depart)).toLocaleString()})
+                      </span>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <span style={{ fontSize:'10.5px', color:'#94A3B8', fontStyle:'italic' }}>Non inspecté</span>
+            )}
+          </div>
+        </div>
+
+        <div style={{ display:'flex', gap:'5px', flexWrap:'wrap', alignItems:'center' }}>
+          {score && (
+            <span style={{ background: score.bg, color: score.color,
+              padding:'2px 9px', borderRadius:'8px', fontSize:'10.5px', fontWeight:'800' }}>
+              Score: {nb(r.score_retour)}/100
+            </span>
+          )}
+          <ZoneChip zones={bosses}    color="#D97706" label="Bosses" />
+          <ZoneChip zones={eraflures} color="#DC2626" label="Éraflures" />
+          {r.carburant_retour != null && (
+            <span style={{ display:'flex', alignItems:'center', gap:'3px', fontSize:'10px', color:'#64748B',
+              background:'#F8FAFC', padding:'2px 7px', borderRadius:'7px', fontWeight:'600' }}>
+              <Fuel size={9}/> Carburant: {r.carburant_retour}%
+            </span>
+          )}
+        </div>
+
+        {(r.client_nom || r.client) && (
+          <div style={{ marginTop:'7px', fontSize:'10.5px', color:'#64748B', display:'flex', gap:'4px', alignItems:'center' }}>
+            <User size={10}/> Client: <strong style={{ color:'#1A2535' }}>{r.client_nom || `#${r.client}`}</strong>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const RapportEtatModal = ({ vehicle, reservations, onClose }) => {
+  const NAVY = '#1B3A6B';
+  const vRes = [...(reservations || [])]
+    .filter(r => r.vehicle === vehicle?.id)
+    .sort((a, b) => new Date(b.date_debut) - new Date(a.date_debut));
+
+  const locations = vRes.length;
+  const sinistres = vRes.filter(r => r.a_accident).length;
+  const impacts   = vRes.reduce((s, r) => s + parseZones(r.bosses_retour).length, 0);
+  const rayures   = vRes.reduce((s, r) => s + parseZones(r.eraflures_retour).length, 0);
+  const inspected = vRes.filter(r => r.inspection_retour_faite).length;
+  const kmTotal   = vRes.reduce((s, r) => {
+    const diff = nb(r.kilometrage_retour) - nb(r.kilometrage_depart);
+    return s + (diff > 0 ? diff : 0);
+  }, 0);
+  const scores    = vRes.filter(r => r.score_retour != null).map(r => nb(r.score_retour));
+  const avgScore  = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+
+  const et = etatLabel(vehicle?.etat_carrosserie);
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
+      <div className="modal" onClick={e => e.stopPropagation()}
+        style={{ maxWidth: '660px', maxHeight: '90vh', display:'flex', flexDirection:'column', padding: 0 }}>
+
+        {/* Header */}
+        <div style={{ padding:'16px 20px', background: NAVY, borderRadius:'12px 12px 0 0',
+          display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink: 0 }}>
+          <div>
+            <div style={{ color:'white', fontWeight:'800', fontSize:'15px', display:'flex', gap:'7px', alignItems:'center' }}>
+              <Shield size={16}/> Rapport d'État — {vehicle.marque} {vehicle.modele}
+            </div>
+            <div style={{ color:'rgba(255,255,255,0.65)', fontSize:'11.5px', marginTop:'2px' }}>
+              {vehicle.immatriculation} · {vehicle.annee} · {vehicle.couleur}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background:'rgba(255,255,255,0.15)', border:'none',
+            borderRadius:'8px', color:'white', cursor:'pointer', padding:'6px', display:'flex', alignItems:'center' }}>
+            <X size={17}/>
+          </button>
+        </div>
+
+        {/* Body scrollable */}
+        <div style={{ overflowY:'auto', flex: 1, padding:'16px 20px' }}>
+
+          {/* État actuel */}
+          <div style={{ background:'#F8FAFC', borderRadius:'10px', padding:'12px 14px',
+            marginBottom:'14px', border:'1.5px solid #E2E8F0' }}>
+            <div style={{ fontWeight:'800', fontSize:'12.5px', color: NAVY, marginBottom:'8px',
+              display:'flex', gap:'5px', alignItems:'center' }}>
+              <Eye size={13}/> État actuel du véhicule
+            </div>
+            <div style={{ display:'flex', gap:'8px', flexWrap:'wrap', alignItems:'center' }}>
+              <span style={{ background: et.bg, color: et.color, padding:'2px 9px', borderRadius:'9px', fontSize:'11px', fontWeight:'700' }}>
+                {et.label}
+              </span>
+              <span style={{ fontSize:'11px', color:'#64748B', display:'flex', gap:'3px', alignItems:'center' }}>
+                <Gauge size={11}/> {nb(vehicle.kilometrage).toLocaleString()} km
+              </span>
+              <span style={{ fontSize:'11px', color:'#64748B', display:'flex', gap:'3px', alignItems:'center' }}>
+                <Fuel size={11}/> {vehicle.type_carburant}
+              </span>
+              <span style={{ fontSize:'11px', color:'#64748B', display:'flex', gap:'3px', alignItems:'center' }}>
+                <Users size={11}/> {vehicle.nombre_places} places
+              </span>
+            </div>
+          </div>
+
+          {/* Stats globales — mêmes 4 que la card */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'7px', marginBottom:'12px' }}>
+            {[
+              { icon: <Car size={14}/>,           val: locations, label:'Locations',  color: NAVY      },
+              { icon: <AlertTriangle size={14}/>, val: sinistres, label:'Sinistres',  color:'#DC2626'  },
+              { icon: <Wrench size={14}/>,        val: impacts,   label:'Impacts',    color:'#D97706'  },
+              { icon: <Shield size={14}/>,        val: rayures,   label:'Rayures',    color:'#7C3AED'  },
+            ].map(s => (
+              <div key={s.label} style={{ textAlign:'center', background:'#F8FAFC', borderRadius:'8px', padding:'8px 4px' }}>
+                <div style={{ color: s.color, display:'flex', justifyContent:'center', marginBottom:'2px' }}>{s.icon}</div>
+                <div style={{ fontWeight:'800', fontSize:'17px', color: s.color }}>{s.val}</div>
+                <div style={{ fontSize:'9.5px', color:'#94A3B8', fontWeight:'600' }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Km / Score / Inspections */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'7px', marginBottom:'16px' }}>
+            <div style={{ background:'#EFF4FB', borderRadius:'8px', padding:'9px 10px', textAlign:'center' }}>
+              <div style={{ fontSize:'9.5px', color:'#64748B', fontWeight:'700', textTransform:'uppercase', marginBottom:'3px' }}>
+                Km parcourus
+              </div>
+              <div style={{ fontWeight:'800', fontSize:'14px', color: NAVY }}>
+                {kmTotal > 0 ? `+${kmTotal.toLocaleString()}` : '—'}
+              </div>
+            </div>
+            <div style={{ background:'#F3EEFF', borderRadius:'8px', padding:'9px 10px', textAlign:'center' }}>
+              <div style={{ fontSize:'9.5px', color:'#64748B', fontWeight:'700', textTransform:'uppercase', marginBottom:'3px' }}>
+                Score moyen retour
+              </div>
+              <div style={{ fontWeight:'800', fontSize:'14px', color:'#7C3AED' }}>
+                {avgScore != null ? `${avgScore}/100` : '—'}
+              </div>
+            </div>
+            <div style={{ background:'#DCFCE7', borderRadius:'8px', padding:'9px 10px', textAlign:'center' }}>
+              <div style={{ fontSize:'9.5px', color:'#64748B', fontWeight:'700', textTransform:'uppercase', marginBottom:'3px' }}>
+                Inspections
+              </div>
+              <div style={{ fontWeight:'800', fontSize:'14px', color:'#16A34A' }}>
+                {inspected}/{locations}
+              </div>
+            </div>
+          </div>
+
+          {/* Historique */}
+          <div style={{ fontWeight:'800', fontSize:'12.5px', color: NAVY, marginBottom:'9px',
+            display:'flex', gap:'5px', alignItems:'center' }}>
+            <Clock size={13}/> Historique des locations
+            <span style={{ background:'#EFF4FB', color: NAVY, padding:'1px 7px', borderRadius:'7px', fontSize:'10.5px' }}>
+              {locations}
+            </span>
+          </div>
+
+          {vRes.length === 0 ? (
+            <div style={{ textAlign:'center', padding:'28px', color:'#94A3B8',
+              background:'#F8FAFC', borderRadius:'10px', border:'1.5px dashed #DDE3ED' }}>
+              <Car size={30} color="#DDE3ED" style={{ margin:'0 auto 8px' }}/>
+              <p style={{ fontWeight:'600', color:'#64748B', margin: 0 }}>Aucune location enregistrée</p>
+            </div>
+          ) : (
+            vRes.map((r, idx) => (
+              <RentalRow key={r.id} r={r} idx={vRes.length - 1 - idx} />
+            ))
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding:'11px 20px', borderTop:'1px solid #E2E8F0', background:'#F8FAFC',
+          borderRadius:'0 0 12px 12px', flexShrink: 0, display:'flex', justifyContent:'flex-end' }}>
+          <button onClick={onClose} style={{ padding:'8px 22px', background: NAVY, color:'white',
+            border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'700', fontSize:'13px' }}>
+            Fermer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
+// MAIN COMPONENT
+// ─────────────────────────────────────────────────────────────
 const Vehicles = () => {
   const { user }    = useAuth();
   const isAdmin     = user?.role === 'admin';
@@ -136,6 +440,7 @@ const Vehicles = () => {
   const [currentPage,  setCurrentPage]  = useState(1);
   const [activeTab,    setActiveTab]    = useState('infos');
   const [photoFile,    setPhotoFile]    = useState(null);
+  const [rapportVeh,   setRapportVeh]   = useState(null);   // ← NOUVEAU
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -150,8 +455,8 @@ const Vehicles = () => {
   const getVehicleStats = (id) => ({
     locations: reservations.filter(r => r.vehicle === id).length,
     sinistres: reservations.filter(r => r.vehicle === id && r.a_accident).length,
-    impacts:   reservations.filter(r => r.vehicle === id).reduce((s,r) => s + (r.bosses_retour ? JSON.parse(r.bosses_retour).length : 0), 0),
-    rayures:   reservations.filter(r => r.vehicle === id).reduce((s,r) => s + (r.eraflures_retour ? JSON.parse(r.eraflures_retour).length : 0), 0),
+    impacts:   reservations.filter(r => r.vehicle === id).reduce((s, r) => s + parseZones(r.bosses_retour).length, 0),
+    rayures:   reservations.filter(r => r.vehicle === id).reduce((s, r) => s + parseZones(r.eraflures_retour).length, 0),
   });
 
   const hasAlert = (v) => {
@@ -160,18 +465,18 @@ const Vehicles = () => {
     return soon(v.date_revision) || soon(v.date_assurance) || soon(v.date_ct);
   };
 
-  const norm = (s) => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const norm = (s) => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
   const filtered = vehicles.filter(v => {
     const q = search.toLowerCase();
-    const matchSearch = !q || [v.marque,v.modele,v.immatriculation,v.couleur].some(f => (f||'').toLowerCase().includes(q));
+    const matchSearch = !q || [v.marque, v.modele, v.immatriculation, v.couleur].some(f => (f || '').toLowerCase().includes(q));
     const matchStat   = statFilter === 'all' || norm(v.statut) === norm(statFilter);
     const matchCat    = catFilter  === 'all' || classifyVehicle(v) === catFilter;
     return matchSearch && matchStat && matchCat;
   });
 
   const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
-  const paginated  = filtered.slice((currentPage-1)*ITEMS_PER_PAGE, currentPage*ITEMS_PER_PAGE);
+  const paginated  = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const handleSearch   = (v) => { setSearch(v);     setCurrentPage(1); };
   const handleStatFilt = (v) => { setStatFilter(v); setCurrentPage(1); };
@@ -209,7 +514,7 @@ const Vehicles = () => {
     setLoading(true);
     try {
       const fd = new FormData();
-      Object.entries(form).forEach(([k,v]) => { if (v !== '' && v !== null) fd.append(k, v); });
+      Object.entries(form).forEach(([k, v]) => { if (v !== '' && v !== null) fd.append(k, v); });
       if (photoFile) fd.append('photo', photoFile);
       const cfg = { headers: { 'Content-Type': 'multipart/form-data' } };
       if (editingVeh) await api.put(`/vehicles/${editingVeh.id}/`, fd, cfg);
@@ -250,53 +555,53 @@ const Vehicles = () => {
 
   return (
     <div>
-      {/* ── Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h1 className="page-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px' }}>
+        <h1 className="page-title" style={{ margin: 0, display:'flex', alignItems:'center', gap:'10px' }}>
           <Car size={22} color={NAVY} /> Gestion des Véhicules
         </h1>
         {isAdmin && (
-          <button className="btn btn-primary" onClick={openAdd} style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+          <button className="btn btn-primary" onClick={openAdd} style={{ display:'flex', alignItems:'center', gap:'7px' }}>
             <Plus size={16} /> Ajouter un véhicule
           </button>
         )}
       </div>
 
-      {/* ── Stats cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '14px', marginBottom: '20px' }}>
+      {/* Stats cards */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'14px', marginBottom:'20px' }}>
         {[
-          { label: 'Total',       value: totalVeh,    color: NAVY,      bg: '#EFF4FB', icon: <Car size={18} /> },
-          { label: 'Disponibles', value: disponibles, color: '#16A34A', bg: '#DCFCE7', icon: <CheckCircle size={18} /> },
-          { label: 'Loués',       value: loues,       color: '#7C3AED', bg: '#F3EEFF', icon: <Key size={18} /> },
-          { label: 'Alertes',     value: alerts,      color: '#DC2626', bg: '#FEE2E2', icon: <AlertTriangle size={18} /> },
+          { label:'Total',       value: totalVeh,    color: NAVY,      bg:'#EFF4FB', icon:<Car size={18}/> },
+          { label:'Disponibles', value: disponibles, color:'#16A34A',  bg:'#DCFCE7', icon:<CheckCircle size={18}/> },
+          { label:'Loués',       value: loues,       color:'#7C3AED',  bg:'#F3EEFF', icon:<Key size={18}/> },
+          { label:'Alertes',     value: alerts,      color:'#DC2626',  bg:'#FEE2E2', icon:<AlertTriangle size={18}/> },
         ].map(s => (
-          <div key={s.label} className="card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 18px' }}>
-            <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: s.bg, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <div key={s.label} className="card" style={{ display:'flex', alignItems:'center', gap:'14px', padding:'16px 18px' }}>
+            <div style={{ width:'42px', height:'42px', borderRadius:'10px', background: s.bg, color: s.color, display:'flex', alignItems:'center', justifyContent:'center', flexShrink: 0 }}>
               {s.icon}
             </div>
             <div>
-              <div style={{ fontSize: '24px', fontWeight: '800', color: s.color, lineHeight: 1 }}>{s.value}</div>
-              <div style={{ color: '#64748B', fontSize: '12px', marginTop: '2px' }}>{s.label}</div>
+              <div style={{ fontSize:'24px', fontWeight:'800', color: s.color, lineHeight: 1 }}>{s.value}</div>
+              <div style={{ color:'#64748B', fontSize:'12px', marginTop:'2px' }}>{s.label}</div>
             </div>
           </div>
         ))}
       </div>
 
       {/* Filtres catégories */}
-      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
+      <div style={{ display:'flex', gap:'6px', flexWrap:'wrap', marginBottom:'12px' }}>
         {CATEGORIES.map(cat => {
           const count  = cat.key === 'all' ? vehicles.length : vehicles.filter(v => classifyVehicle(v) === cat.key).length;
           const active = catFilter === cat.key;
           return (
             <button key={cat.key} onClick={() => handleCatFilt(cat.key)}
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: '20px',
+              style={{ display:'flex', alignItems:'center', gap:'5px', padding:'6px 14px', borderRadius:'20px',
                 border: active ? 'none' : '1.5px solid #DDE3ED',
                 background: active ? NAVY : 'white',
                 color: active ? 'white' : '#64748B',
-                fontWeight: active ? '700' : '500', fontSize: '12.5px', cursor: 'pointer', transition: 'all 0.14s' }}>
-              <span style={{ fontSize: '14px', lineHeight: 1 }}>{cat.icon}</span>
+                fontWeight: active ? '700' : '500', fontSize:'12.5px', cursor:'pointer', transition:'all 0.14s' }}>
+              <span style={{ fontSize:'14px', lineHeight: 1 }}>{cat.icon}</span>
               {cat.label}
-              <span style={{ background: active ? 'rgba(255,255,255,0.22)' : '#F1F5F9', color: active ? 'white' : '#64748B', padding: '1px 7px', borderRadius: '10px', fontSize: '11px', fontWeight: '700' }}>
+              <span style={{ background: active ? 'rgba(255,255,255,0.22)' : '#F1F5F9', color: active ? 'white' : '#64748B', padding:'1px 7px', borderRadius:'10px', fontSize:'11px', fontWeight:'700' }}>
                 {count}
               </span>
             </button>
@@ -305,36 +610,32 @@ const Vehicles = () => {
       </div>
 
       {/* Search */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
-          <Search size={15} color="#94A3B8" style={{ position: 'absolute', left: '11px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+      <div style={{ display:'flex', gap:'12px', marginBottom:'12px', flexWrap:'wrap' }}>
+        <div style={{ position:'relative', flex: 1, minWidth:'200px' }}>
+          <Search size={15} color="#94A3B8" style={{ position:'absolute', left:'11px', top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }} />
           <input value={search} onChange={e => handleSearch(e.target.value)}
             placeholder="Rechercher par marque, modèle, immatriculation..."
-            style={{ paddingLeft: '34px', width: '100%' }} />
+            style={{ paddingLeft:'34px', width:'100%' }} />
         </div>
       </div>
 
       {/* Filtres statuts */}
-      <div style={{ display: 'flex', gap: '7px', flexWrap: 'wrap', marginBottom: '16px' }}>
+      <div style={{ display:'flex', gap:'7px', flexWrap:'wrap', marginBottom:'16px' }}>
         {STATUT_FILTERS.map(s => {
           const count  = s.value === 'all' ? null : vehicles.filter(v => norm(v.statut) === norm(s.value)).length;
           const active = statFilter === s.value;
           return (
             <button key={s.value} onClick={() => handleStatFilt(s.value)}
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 14px', borderRadius: '20px',
+              style={{ display:'flex', alignItems:'center', gap:'5px', padding:'7px 14px', borderRadius:'20px',
                 border: active ? 'none' : '1.5px solid #DDE3ED',
                 background: active ? s.color : s.bg,
                 color: active ? 'white' : s.color,
-                fontWeight: '700', fontSize: '12px', cursor: 'pointer',
-                transition: 'all 0.15s',
+                fontWeight:'700', fontSize:'12px', cursor:'pointer', transition:'all 0.15s',
                 boxShadow: active ? `0 2px 10px ${s.color}40` : 'none' }}>
-              {s.icon && <span style={{ display: 'flex', alignItems: 'center' }}>{s.icon}</span>}
+              {s.icon && <span style={{ display:'flex', alignItems:'center' }}>{s.icon}</span>}
               {s.label}
               {count !== null && (
-                <span style={{
-                  background: active ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.08)',
-                  padding: '1px 7px', borderRadius: '10px', fontSize: '11px', fontWeight: '800'
-                }}>
+                <span style={{ background: active ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.08)', padding:'1px 7px', borderRadius:'10px', fontSize:'11px', fontWeight:'800' }}>
                   {count}
                 </span>
               )}
@@ -344,11 +645,11 @@ const Vehicles = () => {
       </div>
 
       {/* Compteur */}
-      <div style={{ fontSize: '12.5px', color: '#64748B', marginBottom: '14px' }}>
-        <strong style={{ color: '#1A2535' }}>{filtered.length}</strong> véhicule{filtered.length !== 1 ? 's' : ''} trouvé{filtered.length !== 1 ? 's' : ''}
+      <div style={{ fontSize:'12.5px', color:'#64748B', marginBottom:'14px' }}>
+        <strong style={{ color:'#1A2535' }}>{filtered.length}</strong> véhicule{filtered.length !== 1 ? 's' : ''} trouvé{filtered.length !== 1 ? 's' : ''}
         {(search || statFilter !== 'all' || catFilter !== 'all') && (
           <button onClick={() => { setSearch(''); setStatFilter('all'); setCatFilter('all'); setCurrentPage(1); }}
-            style={{ marginLeft: '10px', background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer', fontSize: '12px', fontWeight: '600', textDecoration: 'underline' }}>
+            style={{ marginLeft:'10px', background:'none', border:'none', color:'#DC2626', cursor:'pointer', fontSize:'12px', fontWeight:'600', textDecoration:'underline' }}>
             Effacer filtres
           </button>
         )}
@@ -356,13 +657,13 @@ const Vehicles = () => {
 
       {/* Grid véhicules */}
       {paginated.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
-          <Car size={40} color="#DDE3ED" style={{ margin: '0 auto 12px' }} />
-          <p style={{ fontWeight: '600' }}>Aucun véhicule trouvé</p>
-          <p style={{ fontSize: '13px', marginTop: '4px' }}>Modifiez vos filtres ou ajoutez un nouveau véhicule</p>
+        <div className="card" style={{ textAlign:'center', padding:'40px', color:'#64748B' }}>
+          <Car size={40} color="#DDE3ED" style={{ margin:'0 auto 12px' }} />
+          <p style={{ fontWeight:'600' }}>Aucun véhicule trouvé</p>
+          <p style={{ fontSize:'13px', marginTop:'4px' }}>Modifiez vos filtres ou ajoutez un nouveau véhicule</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: '18px' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))', gap:'18px' }}>
           {paginated.map(v => {
             const stats   = getVehicleStats(v.id);
             const st      = statutStyle(v.statut);
@@ -372,121 +673,129 @@ const Vehicles = () => {
             const catInfo = CATEGORIES.find(c => c.key === cat);
 
             return (
-              <div key={v.id} style={{ background: 'white', borderRadius: '14px', border: `1.5px solid ${alert ? '#FECACA' : '#DDE3ED'}`, overflow: 'hidden', transition: 'box-shadow 0.15s', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+              <div key={v.id} style={{ background:'white', borderRadius:'14px', border:`1.5px solid ${alert ? '#FECACA' : '#DDE3ED'}`, overflow:'hidden', transition:'box-shadow 0.15s', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}
                 onMouseEnter={e => e.currentTarget.style.boxShadow = '0 6px 20px rgba(27,58,107,0.12)'}
                 onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.06)'}>
 
-                <div style={{ position: 'relative', height: '150px', overflow: 'hidden' }}>
+                <div style={{ position:'relative', height:'150px', overflow:'hidden' }}>
                   <img src={getCarPhoto(v)} alt={`${v.marque} ${v.modele}`}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    style={{ width:'100%', height:'100%', objectFit:'cover' }}
                     onError={e => { e.target.src = CAR_PHOTOS.default; }} />
-                  <div style={{ position: 'absolute', top: '10px', left: '10px', display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                    <span style={{ background: st.bg, color: st.color, padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '700', backdropFilter: 'blur(4px)' }}>
+                  <div style={{ position:'absolute', top:'10px', left:'10px', display:'flex', gap:'5px', flexWrap:'wrap' }}>
+                    <span style={{ background: st.bg, color: st.color, padding:'3px 10px', borderRadius:'12px', fontSize:'11px', fontWeight:'700', backdropFilter:'blur(4px)' }}>
                       {st.label}
                     </span>
                     {getAge(v.date_acquisition) >= 3.5 && v.statut !== 'a_vendre' && v.statut !== 'vendu' && (
-                      <span style={{ fontSize: '10px', fontWeight: '800', padding: '2px 6px', borderRadius: '4px', background: 'rgba(232,160,32,0.9)', color: 'white' }}>
+                      <span style={{ fontSize:'10px', fontWeight:'800', padding:'2px 6px', borderRadius:'4px', background:'rgba(232,160,32,0.9)', color:'white' }}>
                         🔴 +3.5a
                       </span>
                     )}
-                    <span style={{ background: 'rgba(255,255,255,0.9)', color: '#64748B', padding: '3px 8px', borderRadius: '10px', fontSize: '10.5px', fontWeight: '600' }}>
+                    <span style={{ background:'rgba(255,255,255,0.9)', color:'#64748B', padding:'3px 8px', borderRadius:'10px', fontSize:'10.5px', fontWeight:'600' }}>
                       {catInfo?.icon} {catInfo?.label}
                     </span>
                   </div>
                   {alert && (
-                    <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
-                      <AlertTriangle size={18} color="#DC2626" style={{ background: 'white', borderRadius: '50%', padding: '2px' }} />
+                    <div style={{ position:'absolute', top:'10px', right:'10px' }}>
+                      <AlertTriangle size={18} color="#DC2626" style={{ background:'white', borderRadius:'50%', padding:'2px' }} />
                     </div>
                   )}
-                  <div style={{ position: 'absolute', bottom: '8px', right: '8px', display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'flex-end' }}>
+                  <div style={{ position:'absolute', bottom:'8px', right:'8px', display:'flex', flexDirection:'column', gap:'3px', alignItems:'flex-end' }}>
                     {v.prix_haute_saison && (
-                      <span style={{ background: '#FEF3DC', color: '#92580A', padding: '2px 7px', borderRadius: '8px', fontSize: '10px', fontWeight: '700' }}>
+                      <span style={{ background:'#FEF3DC', color:'#92580A', padding:'2px 7px', borderRadius:'8px', fontSize:'10px', fontWeight:'700' }}>
                         Été: {parseFloat(v.prix_haute_saison).toFixed(0)} DT/j
                       </span>
                     )}
                     {v.prix_tres_haute_saison && (
-                      <span style={{ background: '#FEE2E2', color: '#DC2626', padding: '2px 7px', borderRadius: '8px', fontSize: '10px', fontWeight: '700' }}>
+                      <span style={{ background:'#FEE2E2', color:'#DC2626', padding:'2px 7px', borderRadius:'8px', fontSize:'10px', fontWeight:'700' }}>
                         Juil-Août: {parseFloat(v.prix_tres_haute_saison).toFixed(0)} DT/j
                       </span>
                     )}
                   </div>
                 </div>
 
-                <div style={{ padding: '14px 16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                <div style={{ padding:'14px 16px' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'8px' }}>
                     <div>
-                      <div style={{ fontWeight: '800', fontSize: '15px', color: '#1A2535' }}>{v.marque} {v.modele}</div>
-                      <div style={{ color: NAVY, fontWeight: '700', fontSize: '12px', marginTop: '1px' }}>{v.immatriculation} · {v.annee}</div>
+                      <div style={{ fontWeight:'800', fontSize:'15px', color:'#1A2535' }}>{v.marque} {v.modele}</div>
+                      <div style={{ color: NAVY, fontWeight:'700', fontSize:'12px', marginTop:'1px' }}>{v.immatriculation} · {v.annee}</div>
                     </div>
-                    <div style={{ fontSize: '16px', fontWeight: '800', color: '#16A34A' }}>{parseFloat(v.prix_journalier).toFixed(0)} DT/j</div>
+                    <div style={{ fontSize:'16px', fontWeight:'800', color:'#16A34A' }}>{parseFloat(v.prix_journalier).toFixed(0)} DT/j</div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                  <div style={{ display:'flex', gap:'12px', flexWrap:'wrap', marginBottom:'10px' }}>
                     {[
-                      { icon: <Fuel size={12} />,    val: v.type_carburant },
-                      { icon: <Users size={12} />,   val: `${v.nombre_places} pl.` },
-                      { icon: <Gauge size={12} />,   val: `${(v.kilometrage||0).toLocaleString()} km` },
-                      { icon: <Palette size={12} />, val: v.couleur },
+                      { icon: <Fuel size={12}/>,    val: v.type_carburant },
+                      { icon: <Users size={12}/>,   val: `${v.nombre_places} pl.` },
+                      { icon: <Gauge size={12}/>,   val: `${(v.kilometrage || 0).toLocaleString()} km` },
+                      { icon: <Palette size={12}/>, val: v.couleur },
                     ].map((s, i) => (
-                      <span key={i} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: '#64748B' }}>
+                      <span key={i} style={{ display:'flex', alignItems:'center', gap:'4px', fontSize:'11.5px', color:'#64748B' }}>
                         {s.icon} {s.val}
                       </span>
                     ))}
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8FAFC', borderRadius: '8px', padding: '7px 10px', marginBottom: '10px' }}>
-                    <span style={{ fontSize: '11.5px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <Shield size={12} /> État carrosserie
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'#F8FAFC', borderRadius:'8px', padding:'7px 10px', marginBottom:'10px' }}>
+                    <span style={{ fontSize:'11.5px', color:'#64748B', display:'flex', alignItems:'center', gap:'5px' }}>
+                      <Shield size={12}/> État carrosserie
                     </span>
-                    <span style={{ background: et.bg, color: et.color, padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '700' }}>
+                    <span style={{ background: et.bg, color: et.color, padding:'2px 8px', borderRadius:'8px', fontSize:'11px', fontWeight:'700' }}>
                       {et.label}
                     </span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '4px', marginBottom: '12px' }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'4px', marginBottom:'12px' }}>
                     {[
-                      { icon: <Car size={13} />,           val: stats.locations, label: 'Locations', color: NAVY },
-                      { icon: <AlertTriangle size={13} />, val: stats.sinistres, label: 'Sinistres', color: '#DC2626' },
-                      { icon: <Wrench size={13} />,        val: stats.impacts,   label: 'Impacts',   color: '#D97706' },
-                      { icon: <Shield size={13} />,        val: stats.rayures,   label: 'Rayures',   color: '#7C3AED' },
+                      { icon: <Car size={13}/>,           val: stats.locations, label:'Locations', color: NAVY      },
+                      { icon: <AlertTriangle size={13}/>, val: stats.sinistres, label:'Sinistres', color:'#DC2626'  },
+                      { icon: <Wrench size={13}/>,        val: stats.impacts,   label:'Impacts',   color:'#D97706'  },
+                      { icon: <Shield size={13}/>,        val: stats.rayures,   label:'Rayures',   color:'#7C3AED'  },
                     ].map(s => (
-                      <div key={s.label} style={{ textAlign: 'center', background: '#F8FAFC', borderRadius: '7px', padding: '5px 4px' }}>
-                        <div style={{ color: s.color, display: 'flex', justifyContent: 'center', marginBottom: '2px' }}>{s.icon}</div>
-                        <div style={{ fontWeight: '800', fontSize: '13px', color: s.color }}>{s.val}</div>
-                        <div style={{ fontSize: '9.5px', color: '#94A3B8', fontWeight: '600' }}>{s.label}</div>
+                      <div key={s.label} style={{ textAlign:'center', background:'#F8FAFC', borderRadius:'7px', padding:'5px 4px' }}>
+                        <div style={{ color: s.color, display:'flex', justifyContent:'center', marginBottom:'2px' }}>{s.icon}</div>
+                        <div style={{ fontWeight:'800', fontSize:'13px', color: s.color }}>{s.val}</div>
+                        <div style={{ fontSize:'9.5px', color:'#94A3B8', fontWeight:'600' }}>{s.label}</div>
                       </div>
                     ))}
                   </div>
 
-                  {/* ── Boutons — Rapport état supprimé */}
-                  <div style={{ display: 'flex', gap: '7px', flexDirection: 'column' }}>
-                    <div style={{ display: 'flex', gap: '7px' }}>
+                  {/* ── Boutons */}
+                  <div style={{ display:'flex', flexDirection:'column', gap:'7px' }}>
+                    <div style={{ display:'flex', gap:'7px' }}>
                       <button onClick={() => openEdit(v)}
-                        style={{ flex: 1, padding: '8px', background: NAVY, color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
-                        <Pencil size={13} /> Modifier
+                        style={{ flex: 1, padding:'8px', background: NAVY, color:'white', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'700', fontSize:'12.5px', display:'flex', alignItems:'center', justifyContent:'center', gap:'5px' }}>
+                        <Pencil size={13}/> Modifier
                       </button>
+
+                      {/* ── RAPPORT ÉTAT */}
+                      <button onClick={() => setRapportVeh(v)}
+                        style={{ flex: 1, padding:'8px', background:'#F3EEFF', color:'#7C3AED', border:'1.5px solid #DDD6FE', borderRadius:'8px', cursor:'pointer', fontWeight:'700', fontSize:'12.5px', display:'flex', alignItems:'center', justifyContent:'center', gap:'5px' }}>
+                        <Eye size={13}/> Rapport État
+                      </button>
+
                       {isAdmin && (
                         <button onClick={() => handleDelete(v.id)}
-                          style={{ width: '36px', padding: '8px', background: '#FEE2E2', color: '#DC2626', border: 'none', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <Trash2 size={14} />
+                          style={{ width:'36px', padding:'8px', background:'#FEE2E2', color:'#DC2626', border:'none', borderRadius:'8px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          <Trash2 size={14}/>
                         </button>
                       )}
                     </div>
+
                     {isAdmin && v.statut !== 'vendu' && getAge(v.date_acquisition) >= 3.5 && v.statut !== 'a_vendre' && (
                       <button onClick={() => handleMettreEnVente(v)}
-                        style={{ width: '100%', padding: '8px', background: '#FEF3DC', color: '#E8A020', border: '1.5px solid #FCD34D', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                        <Tag size={13} /> Mettre en vente
+                        style={{ width:'100%', padding:'8px', background:'#FEF3DC', color:'#E8A020', border:'1.5px solid #FCD34D', borderRadius:'8px', cursor:'pointer', fontWeight:'700', fontSize:'12px', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px' }}>
+                        <Tag size={13}/> Mettre en vente
                       </button>
                     )}
                     {isAdmin && v.statut === 'a_vendre' && (
                       <button onClick={() => handleMarquerVendu(v)}
-                        style={{ width: '100%', padding: '8px', background: '#DCFCE7', color: '#16A34A', border: '1.5px solid #86EFAC', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                        <CheckCircle size={13} /> Marquer comme vendu
+                        style={{ width:'100%', padding:'8px', background:'#DCFCE7', color:'#16A34A', border:'1.5px solid #86EFAC', borderRadius:'8px', cursor:'pointer', fontWeight:'700', fontSize:'12px', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px' }}>
+                        <CheckCircle size={13}/> Marquer comme vendu
                       </button>
                     )}
                     {v.statut === 'vendu' && (
-                      <div style={{ width: '100%', padding: '8px', background: '#F1F5F9', color: '#64748B', borderRadius: '8px', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                        <Shield size={13} /> Véhicule vendu
+                      <div style={{ width:'100%', padding:'8px', background:'#F1F5F9', color:'#64748B', borderRadius:'8px', fontWeight:'700', fontSize:'12px', display:'flex', alignItems:'center', justifyContent:'center', gap:'6px' }}>
+                        <Shield size={13}/> Véhicule vendu
                       </div>
                     )}
                   </div>
@@ -497,16 +806,16 @@ const Vehicles = () => {
         </div>
       )}
 
-      <div className="card" style={{ marginTop: '20px' }}>
+      <div className="card" style={{ marginTop:'20px' }}>
         <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={filtered.length} itemsPerPage={ITEMS_PER_PAGE} />
       </div>
 
-      {/* ── Modal */}
+      {/* ── Modal Ajouter/Modifier */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px' }}>
-            <h2>{editingVeh ? <><Pencil size={17} /> Modifier le véhicule</> : <><Plus size={17} /> Ajouter un véhicule</>}</h2>
-            <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', background: '#F8FAFC', borderRadius: '10px', padding: '4px' }}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth:'700px' }}>
+            <h2>{editingVeh ? <><Pencil size={17}/> Modifier le véhicule</> : <><Plus size={17}/> Ajouter un véhicule</>}</h2>
+            <div style={{ display:'flex', gap:'4px', marginBottom:'20px', background:'#F8FAFC', borderRadius:'10px', padding:'4px' }}>
               {[
                 { key:'infos',     label:'Infos' },
                 { key:'tech',      label:'Technique' },
@@ -515,21 +824,21 @@ const Vehicles = () => {
                 { key:'photo',     label:'Photo' },
               ].map(t => (
                 <button key={t.key} onClick={() => setActiveTab(t.key)}
-                  style={{ flex: 1, padding: '7px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12.5px', background: activeTab === t.key ? NAVY : 'transparent', color: activeTab === t.key ? 'white' : '#64748B', transition: 'all 0.14s' }}>
+                  style={{ flex: 1, padding:'7px', border:'none', borderRadius:'8px', cursor:'pointer', fontWeight:'700', fontSize:'12.5px', background: activeTab === t.key ? NAVY : 'transparent', color: activeTab === t.key ? 'white' : '#64748B', transition:'all 0.14s' }}>
                   {t.label}
                 </button>
               ))}
             </div>
             <form onSubmit={handleSubmit}>
               {activeTab === 'infos' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                  <div className="form-group"><label>Marque *</label><input value={form.marque} onChange={e=>setForm({...form,marque:e.target.value})} required /></div>
-                  <div className="form-group"><label>Modèle *</label><input value={form.modele} onChange={e=>setForm({...form,modele:e.target.value})} required /></div>
-                  <div className="form-group"><label>Immatriculation *</label><input value={form.immatriculation} onChange={e=>setForm({...form,immatriculation:e.target.value})} required /></div>
-                  <div className="form-group"><label>Année</label><input type="number" value={form.annee} onChange={e=>setForm({...form,annee:e.target.value})} /></div>
-                  <div className="form-group"><label>Couleur</label><input value={form.couleur} onChange={e=>setForm({...form,couleur:e.target.value})} /></div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
+                  <div className="form-group"><label>Marque *</label><input value={form.marque} onChange={e => setForm({ ...form, marque: e.target.value })} required /></div>
+                  <div className="form-group"><label>Modèle *</label><input value={form.modele} onChange={e => setForm({ ...form, modele: e.target.value })} required /></div>
+                  <div className="form-group"><label>Immatriculation *</label><input value={form.immatriculation} onChange={e => setForm({ ...form, immatriculation: e.target.value })} required /></div>
+                  <div className="form-group"><label>Année</label><input type="number" value={form.annee} onChange={e => setForm({ ...form, annee: e.target.value })} /></div>
+                  <div className="form-group"><label>Couleur</label><input value={form.couleur} onChange={e => setForm({ ...form, couleur: e.target.value })} /></div>
                   <div className="form-group"><label>Statut</label>
-                    <select value={form.statut} onChange={e=>setForm({...form,statut:e.target.value})}>
+                    <select value={form.statut} onChange={e => setForm({ ...form, statut: e.target.value })}>
                       <option value="disponible">Disponible</option>
                       <option value="loué">Loué</option>
                       <option value="maintenance">Maintenance</option>
@@ -538,8 +847,8 @@ const Vehicles = () => {
                       <option value="hors service">Hors service</option>
                     </select>
                   </div>
-                  <div className="form-group" style={{gridColumn:'1/-1'}}><label>État carrosserie</label>
-                    <select value={form.etat_carrosserie} onChange={e=>setForm({...form,etat_carrosserie:e.target.value})}>
+                  <div className="form-group" style={{ gridColumn:'1/-1' }}><label>État carrosserie</label>
+                    <select value={form.etat_carrosserie} onChange={e => setForm({ ...form, etat_carrosserie: e.target.value })}>
                       <option value="excellent">Excellent état</option>
                       <option value="defauts">Défauts mineurs</option>
                       <option value="dommages">Dommages visibles</option>
@@ -549,57 +858,57 @@ const Vehicles = () => {
                 </div>
               )}
               {activeTab === 'tech' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
                   <div className="form-group"><label>Type carburant</label>
-                    <select value={form.type_carburant} onChange={e=>setForm({...form,type_carburant:e.target.value})}>
+                    <select value={form.type_carburant} onChange={e => setForm({ ...form, type_carburant: e.target.value })}>
                       <option value="essence">Essence</option>
                       <option value="diesel">Diesel</option>
                       <option value="hybride">Hybride</option>
                       <option value="électrique">Électrique</option>
                     </select>
                   </div>
-                  <div className="form-group"><label>Nombre de places</label><input type="number" value={form.nombre_places} onChange={e=>setForm({...form,nombre_places:e.target.value})} min="2" max="9" /></div>
-                  <div className="form-group"><label>Kilométrage</label><input type="number" value={form.kilometrage} onChange={e=>setForm({...form,kilometrage:e.target.value})} /></div>
-                  <div className="form-group"><label>Date révision</label><input type="date" value={form.date_revision||''} onChange={e=>setForm({...form,date_revision:e.target.value})} /></div>
-                  <div className="form-group"><label>Date CT</label><input type="date" value={form.date_ct||''} onChange={e=>setForm({...form,date_ct:e.target.value})} /></div>
+                  <div className="form-group"><label>Nombre de places</label><input type="number" value={form.nombre_places} onChange={e => setForm({ ...form, nombre_places: e.target.value })} min="2" max="9" /></div>
+                  <div className="form-group"><label>Kilométrage</label><input type="number" value={form.kilometrage} onChange={e => setForm({ ...form, kilometrage: e.target.value })} /></div>
+                  <div className="form-group"><label>Date révision</label><input type="date" value={form.date_revision || ''} onChange={e => setForm({ ...form, date_revision: e.target.value })} /></div>
+                  <div className="form-group"><label>Date CT</label><input type="date" value={form.date_ct || ''} onChange={e => setForm({ ...form, date_ct: e.target.value })} /></div>
                 </div>
               )}
               {activeTab === 'tarifs' && (
                 <div>
-                  <div style={{ marginBottom: '14px' }}>
+                  <div style={{ marginBottom:'14px' }}>
                     <div className="form-group">
                       <label>Prix journalier de base (DT) *</label>
-                      <input type="number" value={form.prix_journalier} onChange={e=>setForm({...form,prix_journalier:e.target.value})} required step="0.01" />
+                      <input type="number" value={form.prix_journalier} onChange={e => setForm({ ...form, prix_journalier: e.target.value })} required step="0.01" />
                     </div>
                   </div>
-                  <button type="button" onClick={suggestPrices} style={{ marginBottom: '14px', padding: '8px 14px', background: '#EFF4FB', color: NAVY, border: '1.5px solid #DDE3ED', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12.5px' }}>
+                  <button type="button" onClick={suggestPrices} style={{ marginBottom:'14px', padding:'8px 14px', background:'#EFF4FB', color: NAVY, border:'1.5px solid #DDE3ED', borderRadius:'8px', cursor:'pointer', fontWeight:'700', fontSize:'12.5px' }}>
                     Suggérer prix saisonniers automatiquement
                   </button>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                    <div className="form-group" style={{ background: '#FEF9C3', padding: '12px', borderRadius: '10px', border: '1px solid #FEF08A' }}>
-                      <label style={{ color: '#92580A' }}>Prix Haute saison +25% (Juin/Sep)</label>
-                      <input type="number" value={form.prix_haute_saison} onChange={e=>setForm({...form,prix_haute_saison:e.target.value})} step="0.01" style={{ marginTop: '6px' }} />
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
+                    <div className="form-group" style={{ background:'#FEF9C3', padding:'12px', borderRadius:'10px', border:'1px solid #FEF08A' }}>
+                      <label style={{ color:'#92580A' }}>Prix Haute saison +25% (Juin/Sep)</label>
+                      <input type="number" value={form.prix_haute_saison} onChange={e => setForm({ ...form, prix_haute_saison: e.target.value })} step="0.01" style={{ marginTop:'6px' }} />
                     </div>
-                    <div className="form-group" style={{ background: '#FEE2E2', padding: '12px', borderRadius: '10px', border: '1px solid #FECACA' }}>
-                      <label style={{ color: '#991B1B' }}>Prix Très haute saison +50% (Juil/Août)</label>
-                      <input type="number" value={form.prix_tres_haute_saison} onChange={e=>setForm({...form,prix_tres_haute_saison:e.target.value})} step="0.01" style={{ marginTop: '6px' }} />
+                    <div className="form-group" style={{ background:'#FEE2E2', padding:'12px', borderRadius:'10px', border:'1px solid #FECACA' }}>
+                      <label style={{ color:'#991B1B' }}>Prix Très haute saison +50% (Juil/Août)</label>
+                      <input type="number" value={form.prix_tres_haute_saison} onChange={e => setForm({ ...form, prix_tres_haute_saison: e.target.value })} step="0.01" style={{ marginTop:'6px' }} />
                     </div>
                   </div>
                 </div>
               )}
               {activeTab === 'assurance' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                  <div className="form-group"><label>Date assurance</label><input type="date" value={form.date_assurance||''} onChange={e=>setForm({...form,date_assurance:e.target.value})} /></div>
-                  <div className="form-group"><label>Numéro police</label><input value={form.numero_police||''} onChange={e=>setForm({...form,numero_police:e.target.value})} /></div>
-                  <div className="form-group" style={{gridColumn:'1/-1'}}><label>Notes</label><textarea rows={3} value={form.notes||''} onChange={e=>setForm({...form,notes:e.target.value})} style={{resize:'vertical'}} /></div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
+                  <div className="form-group"><label>Date assurance</label><input type="date" value={form.date_assurance || ''} onChange={e => setForm({ ...form, date_assurance: e.target.value })} /></div>
+                  <div className="form-group"><label>Numéro police</label><input value={form.numero_police || ''} onChange={e => setForm({ ...form, numero_police: e.target.value })} /></div>
+                  <div className="form-group" style={{ gridColumn:'1/-1' }}><label>Notes</label><textarea rows={3} value={form.notes || ''} onChange={e => setForm({ ...form, notes: e.target.value })} style={{ resize:'vertical' }} /></div>
                 </div>
               )}
               {activeTab === 'photo' && (
                 <div>
                   {editingVeh?.photo && (
-                    <div style={{ marginBottom: '14px' }}>
-                      <img src={getCarPhoto(editingVeh)} alt="actuelle" style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '10px' }} />
-                      <p style={{ fontSize: '12px', color: '#64748B', marginTop: '6px' }}>Photo actuelle</p>
+                    <div style={{ marginBottom:'14px' }}>
+                      <img src={getCarPhoto(editingVeh)} alt="actuelle" style={{ width:'100%', height:'180px', objectFit:'cover', borderRadius:'10px' }} />
+                      <p style={{ fontSize:'12px', color:'#64748B', marginTop:'6px' }}>Photo actuelle</p>
                     </div>
                   )}
                   <div className="form-group">
@@ -607,7 +916,7 @@ const Vehicles = () => {
                     <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files[0])} />
                   </div>
                   {photoFile && (
-                    <img src={URL.createObjectURL(photoFile)} alt="aperçu" style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '10px', marginTop: '10px' }} />
+                    <img src={URL.createObjectURL(photoFile)} alt="aperçu" style={{ width:'100%', height:'160px', objectFit:'cover', borderRadius:'10px', marginTop:'10px' }} />
                   )}
                 </div>
               )}
@@ -620,6 +929,15 @@ const Vehicles = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* ── Modal Rapport État */}
+      {rapportVeh && (
+        <RapportEtatModal
+          vehicle={rapportVeh}
+          reservations={reservations}
+          onClose={() => setRapportVeh(null)}
+        />
       )}
     </div>
   );
