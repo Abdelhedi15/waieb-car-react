@@ -33,7 +33,7 @@ const MODES = [
   { value: 'mixte',    label: 'Mixte',    icon: <Shuffle size={15} />,    color: RED,    bg: '#FEE2E2', border: '#FECACA' },
 ];
 
-// ── Algorithme de Luhn (validation carte bancaire) ──────────────────
+// ── Algorithme de Luhn ──────────────────────────────────────────────
 const luhnCheck = (num) => {
   const digits = num.replace(/\D/g, '');
   if (digits.length < 13 || digits.length > 19) return false;
@@ -41,10 +41,7 @@ const luhnCheck = (num) => {
   let isEven = false;
   for (let i = digits.length - 1; i >= 0; i--) {
     let d = parseInt(digits[i], 10);
-    if (isEven) {
-      d *= 2;
-      if (d > 9) d -= 9;
-    }
+    if (isEven) { d *= 2; if (d > 9) d -= 9; }
     sum += d;
     isEven = !isEven;
   }
@@ -69,7 +66,7 @@ const Payments = () => {
   const [filterStatut,    setFilterStatut]    = useState('');
   const [soldeInfo,       setSoldeInfo]       = useState(null);
   const [currentPage,     setCurrentPage]     = useState(1);
-  const [luhnValid,       setLuhnValid]       = useState(null);   // null | true | false
+  const [luhnValid,       setLuhnValid]       = useState(null);
   const [alerteJ1Loading, setAlerteJ1Loading] = useState(false);
   const [alerteJ1Result,  setAlerteJ1Result]  = useState(null);
 
@@ -95,14 +92,10 @@ const Payments = () => {
     setAlerteJ1Loading(true);
     setAlerteJ1Result(null);
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL || ''}/api/reservations/check-payments/`,
-        { method: 'GET' }
-      );
-      const data = await res.json();
-      setAlerteJ1Result(data);
+      const res = await api.get('/reservations/check-payments/');
+      setAlerteJ1Result(res.data);
     } catch (err) {
-      setAlerteJ1Result({ error: 'Erreur connexion: ' + err.message });
+      setAlerteJ1Result({ error: 'Erreur: ' + (err.message || 'connexion') });
     } finally {
       setAlerteJ1Loading(false);
     }
@@ -122,6 +115,7 @@ const Payments = () => {
     setLuhnValid(null);
     setShowModal(true);
   };
+
   const openEdit = (p) => {
     setEditingPayment(p);
     setForm({
@@ -175,7 +169,6 @@ const Payments = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Validation Luhn pour carte
     if (form.mode_paiement === 'carte' && form.num_carte) {
       if (!luhnCheck(form.num_carte.replace(/\s/g, ''))) {
         alert('❌ Numéro de carte invalide (échec validation Luhn)');
@@ -199,7 +192,7 @@ const Payments = () => {
         ...form,
         montant: total > 0 ? total : form.montant,
         statut: autoStatut,
-        num_carte: undefined, // on n'enregistre PAS le numéro de carte (sécurité)
+        num_carte: undefined,
       };
       if (editingPayment) await api.put(`/payments/${editingPayment.id}/`, data);
       else await api.post('/payments/', data);
@@ -380,7 +373,6 @@ const Payments = () => {
           <CreditCard size={22} color={NAVY} /> Gestion des Paiements
         </h1>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          {/* ── Bouton Alerte J-1 ── */}
           <button
             onClick={lancerAlerteJ1}
             disabled={alerteJ1Loading}
@@ -406,7 +398,8 @@ const Payments = () => {
           border: `1.5px solid ${alerteJ1Result.error ? '#FECACA' : '#86EFAC'}`,
           borderRadius: '10px', display: 'flex', alignItems: 'flex-start',
           gap: '12px', position: 'relative' }}>
-          <Bell size={18} color={alerteJ1Result.error ? RED : GREEN} style={{ flexShrink: 0, marginTop: '2px' }} />
+          <Bell size={18} color={alerteJ1Result.error ? RED : GREEN}
+            style={{ flexShrink: 0, marginTop: '2px' }} />
           <div style={{ flex: 1 }}>
             {alerteJ1Result.error ? (
               <div style={{ color: RED, fontWeight: '700' }}>{alerteJ1Result.error}</div>
@@ -620,12 +613,12 @@ const Payments = () => {
               <div style={{ background: '#F8FAFC', borderRadius: '10px',
                 padding: '14px', marginBottom: '14px' }}>
                 {[
-                  { label: 'N° Contrat',     value: contract?.numero || '—', color: PURPLE },
-                  { label: 'Client',         value: client ? `${client.prenom} ${client.nom}` : '—' },
-                  { label: 'CIN',            value: client?.cin || '—', mono: true },
-                  { label: 'Date paiement',  value: selectedPayment.date_paiement },
-                  { label: 'Montant',        value: `${selectedPayment.montant} DT`, color: GREEN },
-                  { label: 'Statut',         value: selectedPayment.statut },
+                  { label: 'N° Contrat',    value: contract?.numero || '—', color: PURPLE },
+                  { label: 'Client',        value: client ? `${client.prenom} ${client.nom}` : '—' },
+                  { label: 'CIN',           value: client?.cin || '—', mono: true },
+                  { label: 'Date paiement', value: selectedPayment.date_paiement },
+                  { label: 'Montant',       value: `${selectedPayment.montant} DT`, color: GREEN },
+                  { label: 'Statut',        value: selectedPayment.statut },
                 ].map(row => (
                   <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between',
                     padding: '8px 0', borderBottom: '1px solid #F0F2F5', fontSize: '13px' }}>
@@ -679,7 +672,6 @@ const Payments = () => {
                 : <><Plus size={17} /> Nouveau Paiement</>}
             </h2>
             <form onSubmit={handleSubmit}>
-              {/* Réservation */}
               <div className="form-group">
                 <label>Réservation *</label>
                 <select value={form.reservation}
@@ -693,10 +685,8 @@ const Payments = () => {
                 </select>
               </div>
 
-              {/* Solde info */}
               {soldeInfo && (
                 <div style={{ marginBottom: '16px' }}>
-                  {/* Explication visuelle du processus */}
                   <div style={{ background: '#EFF4FB', borderRadius: '10px',
                     padding: '12px 14px', marginBottom: '10px',
                     border: '1px solid #BFDBFE', fontSize: '12.5px', color: '#1B3A6B' }}>
@@ -708,13 +698,12 @@ const Payments = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)',
                     gap: '8px', marginBottom: '8px' }}>
                     {[
-                      { label: 'Total',   value: `${soldeInfo.montant_total} DT`, color: NAVY,  bg: '#EFF4FB' },
-                      { label: 'Acompte payé', value: `${soldeInfo.acompte} DT`, color: AMBER, bg: '#FEF3DC' },
+                      { label: 'Total',        value: `${soldeInfo.montant_total} DT`, color: NAVY,  bg: '#EFF4FB' },
+                      { label: 'Acompte payé', value: `${soldeInfo.acompte} DT`,       color: AMBER, bg: '#FEF3DC' },
                       { label: 'Restant à payer',
-                        value: soldeInfo.montant_restant > 0
-                          ? `${soldeInfo.montant_restant} DT` : '✅ Soldé',
+                        value: soldeInfo.montant_restant > 0 ? `${soldeInfo.montant_restant} DT` : '✅ Soldé',
                         color: soldeInfo.montant_restant > 0 ? RED : GREEN,
-                        bg: soldeInfo.montant_restant > 0 ? '#FEF9C3' : '#DCFCE7',
+                        bg:    soldeInfo.montant_restant > 0 ? '#FEF9C3' : '#DCFCE7',
                         border: soldeInfo.montant_restant > 0 ? AMBER : GREEN },
                     ].map(s => (
                       <div key={s.label} style={{ background: s.bg, borderRadius: '8px',
@@ -728,8 +717,7 @@ const Payments = () => {
                       </div>
                     ))}
                   </div>
-                  <div style={{ background: '#F0F2F5', borderRadius: '4px',
-                    height: '7px', overflow: 'hidden' }}>
+                  <div style={{ background: '#F0F2F5', borderRadius: '4px', height: '7px', overflow: 'hidden' }}>
                     <div style={{
                       background: soldeInfo.montant_restant <= 0 ? GREEN : NAVY,
                       height: '100%',
@@ -738,16 +726,13 @@ const Payments = () => {
                       transition: 'width 0.3s'
                     }} />
                   </div>
-                  <div style={{ fontSize: '11px', color: '#94A3B8',
-                    textAlign: 'right', marginTop: '3px' }}>
+                  <div style={{ fontSize: '11px', color: '#94A3B8', textAlign: 'right', marginTop: '3px' }}>
                     {soldeInfo.montant_total > 0
-                      ? ((soldeInfo.total_paye / soldeInfo.montant_total) * 100).toFixed(0)
-                      : 0}% payé
+                      ? ((soldeInfo.total_paye / soldeInfo.montant_total) * 100).toFixed(0) : 0}% payé
                   </div>
                 </div>
               )}
 
-              {/* Mode buttons */}
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ fontSize: '12px', fontWeight: '700', color: '#64748B',
                   textTransform: 'uppercase', letterSpacing: '0.4px',
@@ -780,7 +765,6 @@ const Payments = () => {
                 </div>
               </div>
 
-              {/* Espèces */}
               {form.mode_paiement === 'espèces' && (
                 <div style={{ background: '#DCFCE7', border: '1.5px solid #86EFAC',
                   borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
@@ -799,7 +783,6 @@ const Payments = () => {
                 </div>
               )}
 
-              {/* Carte + Luhn */}
               {form.mode_paiement === 'carte' && (
                 <div style={{ background: '#F3EEFF', border: '1.5px solid #C4B5FD',
                   borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
@@ -829,13 +812,9 @@ const Payments = () => {
                         placeholder="**** **** **** ****"
                         maxLength={19}
                         style={{
-                          border: `2px solid ${
-                            luhnValid === null ? '#C4B5FD'
-                            : luhnValid ? GREEN : RED
-                          }`,
+                          border: `2px solid ${luhnValid === null ? '#C4B5FD' : luhnValid ? GREEN : RED}`,
                           fontFamily: 'monospace', letterSpacing: '2px'
                         }} />
-                      {/* Indicateur Luhn */}
                       {luhnValid !== null && (
                         <div style={{ marginTop: '5px', fontSize: '11.5px', fontWeight: '700',
                           color: luhnValid ? GREEN : RED,
@@ -854,7 +833,6 @@ const Payments = () => {
                 </div>
               )}
 
-              {/* Chèque */}
               {form.mode_paiement === 'chèque' && (
                 <div style={{ background: '#EFF4FB', border: '1.5px solid #BFDBFE',
                   borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
@@ -885,12 +863,10 @@ const Payments = () => {
                 </div>
               )}
 
-              {/* Virement */}
               {form.mode_paiement === 'virement' && (
                 <div style={{ marginBottom: '14px' }}><VirementForm /></div>
               )}
 
-              {/* Mixte */}
               {form.mode_paiement === 'mixte' && (
                 <div style={{ background: '#FEE2E2', border: '1.5px solid #FECACA',
                   borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
@@ -927,7 +903,6 @@ const Payments = () => {
                 </div>
               )}
 
-              {/* Date + statut */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div className="form-group">
                   <label>Date de paiement *</label>
@@ -946,7 +921,6 @@ const Payments = () => {
                 </div>
               </div>
 
-              {/* Total preview */}
               {currentTotal > 0 && (
                 <div style={{ background: willBeSolde ? GREEN : (selectedMode?.color || NAVY),
                   color: 'white', borderRadius: '10px', padding: '13px 16px',
