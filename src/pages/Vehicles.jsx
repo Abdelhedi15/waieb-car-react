@@ -118,9 +118,6 @@ const EMPTY_FORM = {
   kilometrage:'', etat_carrosserie:'excellent', notes:'',
 };
 
-// ─────────────────────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────────────────────
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' }) : '—';
 const nb = (v) => parseInt(v || 0);
 const parseZones = (raw) => { if (!raw) return []; try { return JSON.parse(raw); } catch { return []; } };
@@ -139,6 +136,27 @@ const scoreBadge = (score) => {
   return            { bg: '#FEE2E2', color: '#DC2626' };
 };
 
+// ✅ FIX — Helper pour déterminer le statut réel d'une réservation selon les dates
+const getReservationStatus = (r) => {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const debut = new Date(r.date_debut); debut.setHours(0,0,0,0);
+  const fin   = new Date(r.date_fin);   fin.setHours(0,0,0,0);
+
+  // Si le statut Django est déjà terminée ou annulée → on l'affiche tel quel
+  if (r.statut === 'terminée') return { label: 'Terminée',   bg: '#DBEAFE', color: '#1B3A6B', isPast: true };
+  if (r.statut === 'annulée')  return { label: 'Annulée',    bg: '#FEE2E2', color: '#DC2626', isPast: true };
+
+  // Sinon on se base sur les dates
+  if (fin < today) {
+    // Passée mais encore marquée confirmée → bug de statut Django
+    return { label: 'Terminée ⚠',  bg: '#DBEAFE', color: '#1B3A6B', isPast: true, staleStatut: true };
+  }
+  if (debut <= today && fin >= today) {
+    return { label: 'Active',      bg: '#DCFCE7', color: '#16A34A', isPast: false };
+  }
+  return { label: 'À venir',       bg: '#EFF4FB', color: '#1B3A6B', isPast: false };
+};
+
 const ZoneChip = ({ zones, color, label }) => {
   if (!zones || zones.length === 0) return null;
   return (
@@ -150,9 +168,9 @@ const ZoneChip = ({ zones, color, label }) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// RENTAL ROW
+// ✅ RENTAL ROW — FIXED DATE LOGIC
 // ─────────────────────────────────────────────────────────────
-const RentalRow = ({ r, idx }) => {
+const RentalRow = ({ r, idx, onFixStatut }) => {
   const bosses    = parseZones(r.bosses_retour);
   const eraflures = parseZones(r.eraflures_retour);
   const etatAv    = etatLabel(r.etat_depart || 'excellent');
@@ -160,11 +178,35 @@ const RentalRow = ({ r, idx }) => {
   const score     = r.score_retour != null ? scoreBadge(r.score_retour) : null;
   const hasIssue  = r.a_accident || bosses.length > 0 || eraflures.length > 0 || (r.score_retour != null && nb(r.score_retour) < 70);
 
+  // ✅ FIX — statut basé sur les dates réelles
+  const resStatus = getReservationStatus(r);
+
+  // ✅ FIX — badge d'inspection basé sur les dates
+  const today = new Date(); today.setHours(0,0,0,0);
+  const fin   = new Date(r.date_fin); fin.setHours(0,0,0,0);
+  const isPast = fin < today;
+
+  const getInspectionBadge = () => {
+    if (r.inspection_retour_faite) {
+      return { bg: '#DCFCE7', color: '#16A34A', label: '✓ Inspecté' };
+    }
+    if (isPast) {
+      return { bg: '#FEE2E2', color: '#DC2626', label: '⚠ Non inspecté' };
+    }
+    if (r.statut === 'confirmée' || resStatus.label === 'Active') {
+      return { bg: '#FEF9C3', color: '#D97706', label: '🟡 En cours' };
+    }
+    return { bg: '#EFF4FB', color: '#1B3A6B', label: '📅 À venir' };
+  };
+
+  const inspBadge = getInspectionBadge();
+
   return (
-    <div style={{ border:`1.5px solid ${hasIssue ? '#FECACA' : '#E2E8F0'}`, borderRadius:'10px',
-      marginBottom:'10px', overflow:'hidden', background: hasIssue ? '#FFFAFA' : 'white' }}>
+    <div style={{ border:`1.5px solid ${hasIssue ? '#FECACA' : resStatus.staleStatut ? '#FCD34D' : '#E2E8F0'}`, borderRadius:'10px',
+      marginBottom:'10px', overflow:'hidden', background: hasIssue ? '#FFFAFA' : resStatus.staleStatut ? '#FFFBEB' : 'white' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
-        padding:'9px 14px', background: hasIssue ? '#FFF5F5' : '#F8FAFC', borderBottom:'1px solid #F1F5F9' }}>
+        padding:'9px 14px', background: hasIssue ? '#FFF5F5' : resStatus.staleStatut ? '#FFFDE7' : '#F8FAFC',
+        borderBottom:'1px solid #F1F5F9' }}>
         <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
           <span style={{ fontWeight:'800', fontSize:'11px', color:'#1B3A6B',
             background:'#EFF4FB', borderRadius:'6px', padding:'2px 7px' }}>#{idx + 1}</span>
@@ -172,15 +214,28 @@ const RentalRow = ({ r, idx }) => {
           <span style={{ fontSize:'12px', fontWeight:'700', color:'#1A2535' }}>
             {fmtDate(r.date_debut)} → {fmtDate(r.date_fin)}
           </span>
+          {/* ✅ Badge statut basé sur dates */}
+          <span style={{ background: resStatus.bg, color: resStatus.color,
+            padding:'2px 8px', borderRadius:'8px', fontSize:'10px', fontWeight:'700' }}>
+            {resStatus.label}
+          </span>
         </div>
         <div style={{ display:'flex', gap:'5px', alignItems:'center' }}>
           {r.a_accident && (
             <span style={{ background:'#FEE2E2', color:'#DC2626', padding:'2px 8px', borderRadius:'8px', fontSize:'10.5px', fontWeight:'700' }}>⚠ Accident</span>
           )}
-          {r.inspection_retour_faite ? (
-            <span style={{ background:'#DCFCE7', color:'#16A34A', padding:'2px 8px', borderRadius:'8px', fontSize:'10.5px', fontWeight:'700' }}>✓ Inspecté</span>
-          ) : (
-            <span style={{ background:'#FEF9C3', color:'#D97706', padding:'2px 8px', borderRadius:'8px', fontSize:'10.5px', fontWeight:'700' }}>En cours</span>
+          {/* ✅ FIX — Badge inspection correct selon dates */}
+          <span style={{ background: inspBadge.bg, color: inspBadge.color,
+            padding:'2px 8px', borderRadius:'8px', fontSize:'10.5px', fontWeight:'700' }}>
+            {inspBadge.label}
+          </span>
+          {/* ✅ Bouton fix pour réservations passées mal marquées */}
+          {resStatus.staleStatut && onFixStatut && (
+            <button onClick={() => onFixStatut(r.id)}
+              style={{ padding:'2px 9px', background:'#1B3A6B', color:'white', border:'none',
+                borderRadius:'7px', cursor:'pointer', fontSize:'10px', fontWeight:'700' }}>
+              Marquer terminée
+            </button>
           )}
         </div>
       </div>
@@ -211,7 +266,9 @@ const RentalRow = ({ r, idx }) => {
                 )}
               </>
             ) : (
-              <span style={{ fontSize:'10.5px', color:'#94A3B8', fontStyle:'italic' }}>Non inspecté</span>
+              <span style={{ fontSize:'10.5px', color: isPast ? '#DC2626' : '#94A3B8', fontStyle:'italic', fontWeight: isPast ? '700' : 'normal' }}>
+                {isPast ? '⚠ Non inspecté' : 'Pas encore effectué'}
+              </span>
             )}
           </div>
         </div>
@@ -241,7 +298,7 @@ const RentalRow = ({ r, idx }) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-// RAPPORT ÉTAT MODAL — avec signalement incidents
+// RAPPORT ÉTAT MODAL
 // ─────────────────────────────────────────────────────────────
 const RapportEtatModal = ({ vehicle, reservations, onClose, onDommageSignale }) => {
   const NAVY = '#1B3A6B';
@@ -250,7 +307,6 @@ const RapportEtatModal = ({ vehicle, reservations, onClose, onDommageSignale }) 
   const [incidents,  setIncidents]  = useState([]);
   const [loadingInc, setLoadingInc] = useState(false);
 
-  // Form signalement
   const [sigType,    setSigType]    = useState('impact');
   const [sigGravite, setSigGravite] = useState('mineur');
   const [sigZone,    setSigZone]    = useState('');
@@ -261,11 +317,21 @@ const RapportEtatModal = ({ vehicle, reservations, onClose, onDommageSignale }) 
   const [sigLoading, setSigLoading] = useState(false);
   const [sigDone,    setSigDone]    = useState(false);
 
+  // ✅ FIX — filtre correct par vehicle id + tri par date décroissante
   const vRes = [...(reservations || [])]
     .filter(r => r.vehicle === vehicle?.id)
     .sort((a, b) => new Date(b.date_debut) - new Date(a.date_debut));
 
-  // Charger incidents
+  // ✅ FIX — fix statut stale pour réservations passées
+  const handleFixStatut = async (reservationId) => {
+    try {
+      await api.patch(`/reservations/${reservationId}/`, { statut: 'terminée' });
+      if (onDommageSignale) onDommageSignale();
+    } catch (err) {
+      console.error('Fix statut error:', err);
+    }
+  };
+
   useEffect(() => {
     if (!vehicle?.id) return;
     setLoadingInc(true);
@@ -275,7 +341,9 @@ const RapportEtatModal = ({ vehicle, reservations, onClose, onDommageSignale }) 
       .finally(() => setLoadingInc(false));
   }, [vehicle?.id, sigDone]);
 
-  // Stats = reservations + incidents manuels
+  // ✅ FIX — stats basées sur dates réelles
+  const today = new Date(); today.setHours(0,0,0,0);
+
   const locations = vRes.length;
   const sinistres = [
     ...vRes.filter(r => r.a_accident),
@@ -285,7 +353,14 @@ const RapportEtatModal = ({ vehicle, reservations, onClose, onDommageSignale }) 
                 + incidents.filter(i => i.type_incident === 'impact').length;
   const rayures = vRes.reduce((s, r) => s + parseZones(r.eraflures_retour).length, 0)
                 + incidents.filter(i => i.type_incident === 'rayure').length;
-  const inspected = vRes.filter(r => r.inspection_retour_faite).length;
+
+  // ✅ FIX — compter inspections sur réservations passées uniquement
+  const pastRes = vRes.filter(r => {
+    const fin = new Date(r.date_fin); fin.setHours(0,0,0,0);
+    return fin < today || r.statut === 'terminée';
+  });
+  const inspected = pastRes.filter(r => r.inspection_retour_faite).length;
+
   const kmTotal   = vRes.reduce((s, r) => {
     const diff = nb(r.kilometrage_retour) - nb(r.kilometrage_depart);
     return s + (diff > 0 ? diff : 0);
@@ -293,6 +368,9 @@ const RapportEtatModal = ({ vehicle, reservations, onClose, onDommageSignale }) 
   const scores   = vRes.filter(r => r.score_retour != null).map(r => nb(r.score_retour));
   const avgScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
   const et       = etatLabel(vehicle?.etat_carrosserie);
+
+  // ✅ FIX — compte réservations passées non inspectées
+  const nonInspectedPast = pastRes.filter(r => !r.inspection_retour_faite).length;
 
   const SIG_TYPES = [
     { key: 'impact',   label: 'Impact / Bosse',    emoji: '💥', color: '#DC2626' },
@@ -389,8 +467,6 @@ const RapportEtatModal = ({ vehicle, reservations, onClose, onDommageSignale }) 
                   display:'flex', alignItems:'center', gap:'6px' }}>
                   <AlertTriangle size={13}/> Signaler un incident / dommage
                 </div>
-
-                {/* Type */}
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'6px', marginBottom:'11px' }}>
                   {SIG_TYPES.map(t => (
                     <button key={t.key} onClick={() => setSigType(t.key)}
@@ -404,8 +480,6 @@ const RapportEtatModal = ({ vehicle, reservations, onClose, onDommageSignale }) 
                     </button>
                   ))}
                 </div>
-
-                {/* Gravité */}
                 <div style={{ display:'flex', gap:'6px', marginBottom:'11px', alignItems:'center' }}>
                   <span style={{ fontSize:'11px', fontWeight:'700', color:'#64748B', marginRight:'4px' }}>Gravité :</span>
                   {GRAVITES.map(g => (
@@ -419,8 +493,6 @@ const RapportEtatModal = ({ vehicle, reservations, onClose, onDommageSignale }) 
                     </button>
                   ))}
                 </div>
-
-                {/* Zone + Date + Cout */}
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:'8px', marginBottom:'10px' }}>
                   <div>
                     <label style={{ fontSize:'10.5px', fontWeight:'700', color:'#64748B', display:'block', marginBottom:'3px' }}>Zone</label>
@@ -442,8 +514,6 @@ const RapportEtatModal = ({ vehicle, reservations, onClose, onDommageSignale }) 
                       style={{ width:'100%', padding:'7px', borderRadius:'7px', border:'1.5px solid #DDE3ED', fontSize:'12px', boxSizing:'border-box' }}/>
                   </div>
                 </div>
-
-                {/* Réservation liée */}
                 {vRes.length > 0 && (
                   <div style={{ marginBottom:'10px' }}>
                     <label style={{ fontSize:'10.5px', fontWeight:'700', color:'#64748B', display:'block', marginBottom:'3px' }}>
@@ -460,26 +530,21 @@ const RapportEtatModal = ({ vehicle, reservations, onClose, onDommageSignale }) 
                     </select>
                   </div>
                 )}
-
-                {/* Description */}
                 <div style={{ marginBottom:'10px' }}>
                   <label style={{ fontSize:'10.5px', fontWeight:'700', color:'#64748B', display:'block', marginBottom:'3px' }}>
                     Description <span style={{ color:'#DC2626' }}>*</span>
                   </label>
                   <textarea value={sigNotes} onChange={e => setSigNotes(e.target.value)}
-                    placeholder="Ex: Éraflure profonde sur le flanc droit, longueur ~20cm, découverte au retour de location..."
+                    placeholder="Ex: Éraflure profonde sur le flanc droit..."
                     rows={2}
                     style={{ width:'100%', padding:'9px', border:'1.5px solid #FECACA', borderRadius:'8px',
                       fontSize:'12.5px', resize:'none', fontFamily:'inherit', boxSizing:'border-box' }}/>
                 </div>
-
                 <div style={{ background:'#FEF9C3', border:'1px solid #FDE68A', borderRadius:'8px',
                   padding:'7px 12px', fontSize:'11px', color:'#92580A', fontWeight:'600', marginBottom:'10px',
                   display:'flex', alignItems:'center', gap:'6px' }}>
                   ℹ️ L'état carrosserie du véhicule sera mis à jour automatiquement.
-                  {sigType === 'accident' && ' La réservation liée sera marquée "accident".'}
                 </div>
-
                 <button onClick={handleSignaler} disabled={sigLoading || !sigNotes.trim()}
                   style={{ width:'100%', padding:'10px', fontWeight:'800', fontSize:'13px', border:'none',
                     borderRadius:'9px', cursor: sigLoading || !sigNotes.trim() ? 'not-allowed' : 'pointer',
@@ -494,6 +559,17 @@ const RapportEtatModal = ({ vehicle, reservations, onClose, onDommageSignale }) 
 
         {/* Body */}
         <div style={{ overflowY:'auto', flex:1, padding:'16px 20px' }}>
+
+          {/* ✅ Alerte réservations passées non inspectées */}
+          {nonInspectedPast > 0 && (
+            <div style={{ background:'#FEF9C3', border:'1.5px solid #FCD34D', borderRadius:'10px',
+              padding:'10px 14px', marginBottom:'14px', display:'flex', gap:'8px', alignItems:'center' }}>
+              <AlertTriangle size={14} color="#D97706"/>
+              <span style={{ fontSize:'12px', color:'#92580A', fontWeight:'700' }}>
+                {nonInspectedPast} réservation(s) passée(s) sans inspection de retour
+              </span>
+            </div>
+          )}
 
           {/* État actuel */}
           <div style={{ background:'#F8FAFC', borderRadius:'10px', padding:'12px 14px',
@@ -518,7 +594,7 @@ const RapportEtatModal = ({ vehicle, reservations, onClose, onDommageSignale }) 
             </div>
           </div>
 
-          {/* Stats — incluent incidents manuels */}
+          {/* Stats */}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'7px', marginBottom:'12px' }}>
             {[
               { icon:<Car size={14}/>,           val:locations, label:'Locations', color:NAVY      },
@@ -544,9 +620,11 @@ const RapportEtatModal = ({ vehicle, reservations, onClose, onDommageSignale }) 
               <div style={{ fontSize:'9.5px', color:'#64748B', fontWeight:'700', textTransform:'uppercase', marginBottom:'3px' }}>Score moyen retour</div>
               <div style={{ fontWeight:'800', fontSize:'14px', color:'#7C3AED' }}>{avgScore != null ? `${avgScore}/100` : '—'}</div>
             </div>
-            <div style={{ background:'#DCFCE7', borderRadius:'8px', padding:'9px 10px', textAlign:'center' }}>
+            <div style={{ background: nonInspectedPast > 0 ? '#FEF9C3' : '#DCFCE7', borderRadius:'8px', padding:'9px 10px', textAlign:'center' }}>
               <div style={{ fontSize:'9.5px', color:'#64748B', fontWeight:'700', textTransform:'uppercase', marginBottom:'3px' }}>Inspections</div>
-              <div style={{ fontWeight:'800', fontSize:'14px', color:'#16A34A' }}>{inspected}/{locations}</div>
+              <div style={{ fontWeight:'800', fontSize:'14px', color: nonInspectedPast > 0 ? '#D97706' : '#16A34A' }}>
+                {inspected}/{pastRes.length}
+              </div>
             </div>
           </div>
 
@@ -632,7 +710,15 @@ const RapportEtatModal = ({ vehicle, reservations, onClose, onDommageSignale }) 
               <p style={{ fontWeight:'600', color:'#64748B', margin:0 }}>Aucune location enregistrée</p>
             </div>
           ) : (
-            vRes.map((r, idx) => <RentalRow key={r.id} r={r} idx={vRes.length - 1 - idx}/>)
+            // ✅ FIX — passe onFixStatut pour corriger les statuts stale
+            vRes.map((r, idx) => (
+              <RentalRow
+                key={r.id}
+                r={r}
+                idx={vRes.length - 1 - idx}
+                onFixStatut={handleFixStatut}
+              />
+            ))
           )}
         </div>
 
@@ -884,14 +970,12 @@ const Vehicles = () => {
             const alert   = hasAlert(v);
             const cat     = classifyVehicle(v);
             const catInfo = CATEGORIES.find(c => c.key === cat);
-
             return (
               <div key={v.id} style={{ background:'white', borderRadius:'14px',
                 border:`1.5px solid ${alert ? '#FECACA' : '#DDE3ED'}`, overflow:'hidden',
                 transition:'box-shadow 0.15s', boxShadow:'0 1px 4px rgba(0,0,0,0.06)' }}
                 onMouseEnter={e => e.currentTarget.style.boxShadow='0 6px 20px rgba(27,58,107,0.12)'}
                 onMouseLeave={e => e.currentTarget.style.boxShadow='0 1px 4px rgba(0,0,0,0.06)'}>
-
                 <div style={{ position:'relative', height:'150px', overflow:'hidden' }}>
                   <img src={getCarPhoto(v)} alt={`${v.marque} ${v.modele}`}
                     style={{ width:'100%', height:'100%', objectFit:'cover' }}
@@ -924,7 +1008,6 @@ const Vehicles = () => {
                     )}
                   </div>
                 </div>
-
                 <div style={{ padding:'14px 16px' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'8px' }}>
                     <div>
@@ -933,7 +1016,6 @@ const Vehicles = () => {
                     </div>
                     <div style={{ fontSize:'16px', fontWeight:'800', color:'#16A34A' }}>{parseFloat(v.prix_journalier).toFixed(0)} DT/j</div>
                   </div>
-
                   <div style={{ display:'flex', gap:'12px', flexWrap:'wrap', marginBottom:'10px' }}>
                     {[
                       { icon:<Fuel size={12}/>,    val:v.type_carburant },
@@ -946,7 +1028,6 @@ const Vehicles = () => {
                       </span>
                     ))}
                   </div>
-
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center',
                     background:'#F8FAFC', borderRadius:'8px', padding:'7px 10px', marginBottom:'10px' }}>
                     <span style={{ fontSize:'11.5px', color:'#64748B', display:'flex', alignItems:'center', gap:'5px' }}>
@@ -956,7 +1037,6 @@ const Vehicles = () => {
                       {et.label}
                     </span>
                   </div>
-
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'4px', marginBottom:'12px' }}>
                     {[
                       { icon:<Car size={13}/>,           val:stats.locations, label:'Locations', color:NAVY      },
@@ -971,7 +1051,6 @@ const Vehicles = () => {
                       </div>
                     ))}
                   </div>
-
                   <div style={{ display:'flex', flexDirection:'column', gap:'7px' }}>
                     <div style={{ display:'flex', gap:'7px' }}>
                       <button onClick={() => openEdit(v)}
@@ -1039,132 +1118,3 @@ const Vehicles = () => {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth:'700px' }}>
             <h2>{editingVeh ? <><Pencil size={17}/> Modifier le véhicule</> : <><Plus size={17}/> Ajouter un véhicule</>}</h2>
-            <div style={{ display:'flex', gap:'4px', marginBottom:'20px', background:'#F8FAFC', borderRadius:'10px', padding:'4px' }}>
-              {[{key:'infos',label:'Infos'},{key:'tech',label:'Technique'},{key:'tarifs',label:'Tarifs'},{key:'assurance',label:'Assurance'},{key:'photo',label:'Photo'}].map(t => (
-                <button key={t.key} onClick={() => setActiveTab(t.key)}
-                  style={{ flex:1, padding:'7px', border:'none', borderRadius:'8px', cursor:'pointer',
-                    fontWeight:'700', fontSize:'12.5px',
-                    background: activeTab === t.key ? NAVY : 'transparent',
-                    color: activeTab === t.key ? 'white' : '#64748B' }}>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            <form onSubmit={handleSubmit}>
-              {activeTab === 'infos' && (
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
-                  <div className="form-group"><label>Marque *</label><input value={form.marque} onChange={e => setForm({...form,marque:e.target.value})} required/></div>
-                  <div className="form-group"><label>Modèle *</label><input value={form.modele} onChange={e => setForm({...form,modele:e.target.value})} required/></div>
-                  <div className="form-group"><label>Immatriculation *</label><input value={form.immatriculation} onChange={e => setForm({...form,immatriculation:e.target.value})} required/></div>
-                  <div className="form-group"><label>Année</label><input type="number" value={form.annee} onChange={e => setForm({...form,annee:e.target.value})}/></div>
-                  <div className="form-group"><label>Couleur</label><input value={form.couleur} onChange={e => setForm({...form,couleur:e.target.value})}/></div>
-                  <div className="form-group"><label>Statut</label>
-                    <select value={form.statut} onChange={e => setForm({...form,statut:e.target.value})}>
-                      <option value="disponible">Disponible</option>
-                      <option value="loué">Loué</option>
-                      <option value="maintenance">Maintenance</option>
-                      <option value="a_vendre">À vendre</option>
-                      <option value="vendu">Vendu</option>
-                      <option value="hors service">Hors service</option>
-                    </select>
-                  </div>
-                  <div className="form-group" style={{ gridColumn:'1/-1' }}><label>État carrosserie</label>
-                    <select value={form.etat_carrosserie} onChange={e => setForm({...form,etat_carrosserie:e.target.value})}>
-                      <option value="excellent">Excellent état</option>
-                      <option value="defauts">Défauts mineurs</option>
-                      <option value="dommages">Dommages visibles</option>
-                      <option value="sinistre">Sinistre déclaré</option>
-                    </select>
-                  </div>
-                </div>
-              )}
-              {activeTab === 'tech' && (
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
-                  <div className="form-group"><label>Type carburant</label>
-                    <select value={form.type_carburant} onChange={e => setForm({...form,type_carburant:e.target.value})}>
-                      <option value="essence">Essence</option>
-                      <option value="diesel">Diesel</option>
-                      <option value="hybride">Hybride</option>
-                      <option value="électrique">Électrique</option>
-                    </select>
-                  </div>
-                  <div className="form-group"><label>Nombre de places</label><input type="number" value={form.nombre_places} onChange={e => setForm({...form,nombre_places:e.target.value})} min="2" max="9"/></div>
-                  <div className="form-group"><label>Kilométrage</label><input type="number" value={form.kilometrage} onChange={e => setForm({...form,kilometrage:e.target.value})}/></div>
-                  <div className="form-group"><label>Date révision</label><input type="date" value={form.date_revision||''} onChange={e => setForm({...form,date_revision:e.target.value})}/></div>
-                  <div className="form-group"><label>Date CT</label><input type="date" value={form.date_ct||''} onChange={e => setForm({...form,date_ct:e.target.value})}/></div>
-                </div>
-              )}
-              {activeTab === 'tarifs' && (
-                <div>
-                  <div style={{ marginBottom:'14px' }}>
-                    <div className="form-group">
-                      <label>Prix journalier de base (DT) *</label>
-                      <input type="number" value={form.prix_journalier} onChange={e => setForm({...form,prix_journalier:e.target.value})} required step="0.01"/>
-                    </div>
-                  </div>
-                  <button type="button" onClick={suggestPrices}
-                    style={{ marginBottom:'14px', padding:'8px 14px', background:'#EFF4FB', color:NAVY,
-                      border:'1.5px solid #DDE3ED', borderRadius:'8px', cursor:'pointer', fontWeight:'700', fontSize:'12.5px' }}>
-                    Suggérer prix saisonniers automatiquement
-                  </button>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
-                    <div className="form-group" style={{ background:'#FEF9C3', padding:'12px', borderRadius:'10px', border:'1px solid #FEF08A' }}>
-                      <label style={{ color:'#92580A' }}>Prix Haute saison +25% (Juin/Sep)</label>
-                      <input type="number" value={form.prix_haute_saison} onChange={e => setForm({...form,prix_haute_saison:e.target.value})} step="0.01" style={{ marginTop:'6px' }}/>
-                    </div>
-                    <div className="form-group" style={{ background:'#FEE2E2', padding:'12px', borderRadius:'10px', border:'1px solid #FECACA' }}>
-                      <label style={{ color:'#991B1B' }}>Prix Très haute saison +50% (Juil/Août)</label>
-                      <input type="number" value={form.prix_tres_haute_saison} onChange={e => setForm({...form,prix_tres_haute_saison:e.target.value})} step="0.01" style={{ marginTop:'6px' }}/>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {activeTab === 'assurance' && (
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
-                  <div className="form-group"><label>Date assurance</label><input type="date" value={form.date_assurance||''} onChange={e => setForm({...form,date_assurance:e.target.value})}/></div>
-                  <div className="form-group"><label>Numéro police</label><input value={form.numero_police||''} onChange={e => setForm({...form,numero_police:e.target.value})}/></div>
-                  <div className="form-group" style={{ gridColumn:'1/-1' }}><label>Notes</label><textarea rows={3} value={form.notes||''} onChange={e => setForm({...form,notes:e.target.value})} style={{ resize:'vertical' }}/></div>
-                </div>
-              )}
-              {activeTab === 'photo' && (
-                <div>
-                  {editingVeh?.photo && (
-                    <div style={{ marginBottom:'14px' }}>
-                      <img src={getCarPhoto(editingVeh)} alt="actuelle" style={{ width:'100%', height:'180px', objectFit:'cover', borderRadius:'10px' }}/>
-                      <p style={{ fontSize:'12px', color:'#64748B', marginTop:'6px' }}>Photo actuelle</p>
-                    </div>
-                  )}
-                  <div className="form-group">
-                    <label>Choisir une nouvelle photo</label>
-                    <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files[0])}/>
-                  </div>
-                  {photoFile && (
-                    <img src={URL.createObjectURL(photoFile)} alt="aperçu" style={{ width:'100%', height:'160px', objectFit:'cover', borderRadius:'10px', marginTop:'10px' }}/>
-                  )}
-                </div>
-              )}
-              <div className="modal-actions">
-                <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)}>Annuler</button>
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? 'Enregistrement...' : (editingVeh ? 'Modifier' : 'Ajouter')}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Rapport État */}
-      {rapportVeh && (
-        <RapportEtatModal
-          vehicle={rapportVeh}
-          reservations={reservations}
-          onClose={() => setRapportVeh(null)}
-          onDommageSignale={fetchAll}
-        />
-      )}
-    </div>
-  );
-};
-
-export default Vehicles;
