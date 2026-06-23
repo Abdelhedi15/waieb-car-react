@@ -102,13 +102,9 @@ const PaymentBar = ({ solde, reservation }) => {
   );
 };
 
-// ══════════════════════════════════════════════════════════
-// RetourCheck Banner
-// ══════════════════════════════════════════════════════════
 const RetourAlertBanner = ({ reservations, clients, vehicles, onOpen }) => {
   if (!reservations || reservations.length === 0) return null;
   const today = new Date(); today.setHours(0,0,0,0);
-
   return (
     <div style={{
       background: 'linear-gradient(135deg, #4C1D95 0%, #5B21B6 50%, #6D28D9 100%)',
@@ -118,7 +114,6 @@ const RetourAlertBanner = ({ reservations, clients, vehicles, onOpen }) => {
       animation: 'slideIn 0.4s ease-out',
     }}>
       <div style={{ position: 'absolute', top: '-30px', right: '-30px', width: '120px', height: '120px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }}/>
-
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ width: '44px', height: '44px', background: 'rgba(255,255,255,0.15)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
@@ -139,7 +134,6 @@ const RetourAlertBanner = ({ reservations, clients, vehicles, onOpen }) => {
           À compléter avant clôture
         </div>
       </div>
-
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {reservations.map(r => {
           const client  = clients?.find(c => c.id === r.client);
@@ -191,9 +185,6 @@ const RetourAlertBanner = ({ reservations, clients, vehicles, onOpen }) => {
   );
 };
 
-// ══════════════════════════════════════════════════════════
-// AccidentModal (conservé de l'original)
-// ══════════════════════════════════════════════════════════
 const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConfirm }) => {
   const [selectedVehicle, setSelectedVehicle]    = useState(null);
   const [newDateFin, setNewDateFin]               = useState(reservation.date_fin);
@@ -406,9 +397,6 @@ const MobileNotifPanel = ({ pendingReservations, clients, vehicles, onAction }) 
   );
 };
 
-// ══════════════════════════════════════════════════════════
-// Main Component
-// ══════════════════════════════════════════════════════════
 const ReservationsList = () => {
   const [reservations,   setReservations]   = useState([]);
   const [clients,        setClients]        = useState([]);
@@ -456,7 +444,6 @@ const ReservationsList = () => {
     catch (err) { console.error(err); }
   };
 
-  // ── RetourCheck helpers ──────────────────────────────
   const getReservationsAInspecter = () => {
     const today = new Date(); today.setHours(0,0,0,0);
     const demain = new Date(today); demain.setDate(today.getDate() + 1);
@@ -468,42 +455,52 @@ const ReservationsList = () => {
     });
   };
 
+  // ✅ FIX — handleRetourConfirm : vehicle update ne bloque plus la sauvegarde
   const handleRetourConfirm = async (data) => {
-  try {
-    // 1. Enregistrer l'inspection + passer la réservation en "terminée"
-    await api.patch(`/reservations/${data.reservation_id}/`, {
-      inspection_retour_faite: true,
-      statut:                  'terminée',
-      etat_retour:             data.etat_retour,
-      notes_retour:            data.notes_retour,
-      score_retour:            data.score_retour,
-      kilometrage_retour:      data.kilometrage_retour,
-      carburant_retour:        data.carburant_retour,
-      eraflures_retour:        data.eraflures_retour,
-      bosses_retour:           data.bosses_retour,
-    });
+    try {
+      // ÉTAPE 1 — Sauvegarde inspection + passe réservation en terminée
+      await api.patch(`/reservations/${data.reservation_id}/`, {
+        inspection_retour_faite: true,
+        statut:                  'terminée',
+        etat_retour:             data.etat_retour,
+        notes_retour:            data.notes_retour,
+        score_retour:            data.score_retour,
+        kilometrage_retour:      data.kilometrage_retour,
+        carburant_retour:        data.carburant_retour,
+        eraflures_retour:        data.eraflures_retour,
+        bosses_retour:           data.bosses_retour,
+      });
 
-    // 2. Remettre le véhicule disponible + màj état carrosserie + kilométrage
-    const newEtat = data.etat_retour === 'dommages' ? 'dommages'
-                  : data.etat_retour === 'defauts'  ? 'defauts'
-                  : 'excellent';
-    await api.patch(`/vehicles/${retourModal.vehicle.id}/`, {
-      statut:           'disponible',
-      etat_carrosserie: newEtat,
-      ...(data.kilometrage_retour ? { kilometrage: data.kilometrage_retour } : {}),
-    });
+      // ÉTAPE 2 — Mise à jour véhicule (séparée — ne bloque PAS si erreur 404)
+      try {
+        const newEtat = data.etat_retour === 'dommages' ? 'dommages'
+                      : data.etat_retour === 'defauts'  ? 'defauts'
+                      : 'excellent';
+        await api.patch(`/vehicles/${retourModal.vehicle.id}/`, {
+          statut:           'disponible',
+          etat_carrosserie: newEtat,
+          ...(data.kilometrage_retour
+            ? { kilometrage: data.kilometrage_retour } : {}),
+        });
+      } catch (vehicleErr) {
+        // Vehicle update ignoré — inspection quand même sauvegardée ✅
+        console.warn('[Retour] Vehicle update skipped:',
+          vehicleErr?.response?.status, vehicleErr?.message);
+      }
 
-    await fetchAll();
-    setRetourModal(null);
-  } catch(e) {
-    alert('Erreur lors de l\'enregistrement: ' + JSON.stringify(e.response?.data));
-  }
-};
+      await fetchAll();
+      setRetourModal(null);
+    } catch (e) {
+      alert('Erreur lors de l\'enregistrement: '
+        + JSON.stringify(e.response?.data));
+    }
+  };
 
   const getClient   = id => clients.find(c => c.id === id);
   const getVehicle  = id => vehicles.find(v => v.id === id);
   const getContract = id => contracts.find(c => c.reservation === id);
 
+  // ✅ FIX SORT — Aujourd'hui en premier, futur proche, puis passé
   const filtered = reservations
     .filter(r => {
       const cl = getClient(r.client);
@@ -513,7 +510,37 @@ const ReservationsList = () => {
         && (filterStatut   ? r.statut === filterStatut : true)
         && (filterAccident ? r.a_accident === true     : true);
     })
-    .sort((a, b) => new Date(b.date_debut) - new Date(a.date_debut));
+    .sort((a, b) => {
+      const today    = new Date(); today.setHours(0,0,0,0);
+      const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+
+      const debutA = new Date(a.date_debut), finA = new Date(a.date_fin);
+      const debutB = new Date(b.date_debut), finB = new Date(b.date_fin);
+
+      // 1 — Active AUJOURD'HUI en premier
+      const activeA = debutA <= today && finA >= today;
+      const activeB = debutB <= today && finB >= today;
+      if (activeA && !activeB) return -1;
+      if (!activeA && activeB) return 1;
+
+      // 2 — Se termine aujourd'hui ou demain (inspection urgente)
+      const urgentA = finA >= today && finA <= tomorrow;
+      const urgentB = finB >= today && finB <= tomorrow;
+      if (urgentA && !urgentB) return -1;
+      if (!urgentA && urgentB) return 1;
+
+      // 3 — Futur proche : ascendant (le plus tôt en premier)
+      if (debutA >= today && debutB >= today) return debutA - debutB;
+
+      // 4 — Passé récent : descendant (le plus récent en premier)
+      if (debutA < today && debutB < today) return debutB - debutA;
+
+      // 5 — Futur avant passé
+      if (debutA >= today && debutB < today) return -1;
+      if (debutA < today  && debutB >= today) return 1;
+
+      return 0;
+    });
 
   const totalRestant  = Object.values(soldes).reduce((s, x) => s + Math.max(0, x.montant_restant || 0), 0);
   const totalEncaisse = Object.values(soldes).reduce((s, x) => s + (x.total_paye || 0), 0);
@@ -584,7 +611,7 @@ const ReservationsList = () => {
         ))}
       </div>
 
-      {/* 🔍 RetourCheck Banner */}
+      {/* RetourCheck Banner */}
       <RetourAlertBanner
         reservations={aInspecter}
         clients={clients}
@@ -592,7 +619,7 @@ const ReservationsList = () => {
         onOpen={(r) => setRetourModal({ reservation: r, client: getClient(r.client), vehicle: getVehicle(r.vehicle) })}
       />
 
-      {/* 📱 Mobile notif panel */}
+      {/* Mobile notif panel */}
       <MobileNotifPanel
         pendingReservations={reservations.filter(r => r.statut === 'en_attente')}
         clients={clients} vehicles={vehicles}
@@ -619,7 +646,7 @@ const ReservationsList = () => {
           <button onClick={() => { setFilterAccident(!filterAccident); setCurrentPage(1); }}
             style={{ padding: '8px 14px', background: filterAccident ? '#FEE2E2' : 'white', color: filterAccident ? RED : '#64748B', border: `1.5px solid ${filterAccident ? RED : '#DDE3ED'}`, borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <AlertTriangle size={14} />
-            {filterAccident ? `⚠️ Accidents (${nbAccidents})` : 'Avec accident'}
+            {filterAccident ? `Accidents (${nbAccidents})` : 'Avec accident'}
           </button>
           <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '600' }}>
             <strong style={{ color: '#1A2535' }}>{filtered.length}</strong> résultat(s)
@@ -653,7 +680,6 @@ const ReservationsList = () => {
               border: `1.5px solid ${needsRetour ? PURPLE : isSolde ? '#86EFAC' : r.a_accident ? '#FECACA' : '#DDE3ED'}`,
               boxShadow: needsRetour ? '0 0 0 3px rgba(124,58,237,0.12)' : '0 1px 6px rgba(0,0,0,0.05)',
             }}>
-
               <div style={{
                 padding: '12px 20px', borderBottom: '1px solid #F0F2F5',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px',
@@ -675,7 +701,6 @@ const ReservationsList = () => {
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                  {/* 🔍 Bouton Inspection de Retour */}
                   {needsRetour && (
                     <button onClick={() => setRetourModal({ reservation: r, client, vehicle })}
                       style={{
@@ -753,7 +778,6 @@ const ReservationsList = () => {
                 </div>
               </div>
 
-              {/* Footer notes */}
               {(r.notes || r.accident_description || r.caution) && (
                 <div style={{ padding: '10px 20px', background: '#F8FAFC', borderTop: '1px solid #F0F2F5', display: 'flex', gap: '16px', fontSize: '12.5px', flexWrap: 'wrap' }}>
                   {r.caution && <span style={{ color: PURPLE, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}><Banknote size={12} /> Caution: {r.caution} DT</span>}
@@ -762,7 +786,6 @@ const ReservationsList = () => {
                 </div>
               )}
 
-              {/* Résultat inspection */}
               {r.inspection_retour_faite && r.etat_retour && (
                 <div style={{ padding: '10px 20px', background: '#FAF5FF', borderTop: '1px solid #E9D5FF', display: 'flex', gap: '16px', fontSize: '12.5px', flexWrap: 'wrap', alignItems: 'center' }}>
                   <span style={{ color: PURPLE, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}><ClipboardList size={12} /> Inspection effectuée</span>
@@ -789,7 +812,6 @@ const ReservationsList = () => {
         </div>
       )}
 
-      {/* Modals */}
       {accidentModal && (
         <AccidentModal
           reservation={accidentModal.reservation} client={accidentModal.client}
