@@ -598,8 +598,28 @@ const Vehicles = () => {
   useEffect(()=>{fetchAll();},[]);
 
   const fetchAll=async()=>{
-    try{const[v,r]=await Promise.all([api.get('/vehicles/'),api.get('/reservations/')]);setVehicles(v.data);setReservations(r.data);}
+    try{
+      const[v,r]=await Promise.all([api.get('/vehicles/'),api.get('/reservations/')]);
+      setVehicles(v.data);
+      setReservations(r.data);
+      // Sync statuts Django silencieusement
+      try{ await api.get('/reservations/sync-statuts/'); } catch{}
+    }
     catch(err){console.error(err);}
+  };
+
+  // ✅ Calcul dynamique du vrai statut selon les réservations actives
+  const getVehicleRealStatut = (v) => {
+    if (['vendu','hors service','a_vendre','maintenance'].includes(v.statut)) return v.statut;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const isActive = reservations.some(r => {
+      if (r.vehicle !== v.id) return false;
+      if (!['confirmée','en_attente'].includes(r.statut)) return false;
+      const debut = new Date(r.date_debut); debut.setHours(0,0,0,0);
+      const fin   = new Date(r.date_fin);   fin.setHours(0,0,0,0);
+      return debut <= today && fin >= today;
+    });
+    return isActive ? 'loué' : v.statut;
   };
 
   const getVehicleStats=(id)=>({
@@ -619,8 +639,9 @@ const Vehicles = () => {
 
   const filtered=vehicles.filter(v=>{
     const q=search.toLowerCase();
+    const realStatut=getVehicleRealStatut(v);
     const matchSearch=!q||[v.marque,v.modele,v.immatriculation,v.couleur].some(f=>(f||'').toLowerCase().includes(q));
-    const matchStat=statFilter==='all'||norm(v.statut)===norm(statFilter);
+    const matchStat=statFilter==='all'||norm(realStatut)===norm(statFilter);
     const matchCat=catFilter==='all'||classifyVehicle(v)===catFilter;
     return matchSearch&&matchStat&&matchCat;
   });
@@ -629,8 +650,8 @@ const Vehicles = () => {
   const paginated=filtered.slice((currentPage-1)*ITEMS_PER_PAGE,currentPage*ITEMS_PER_PAGE);
 
   const totalVeh=vehicles.length;
-  const disponibles=vehicles.filter(v=>v.statut==='disponible').length;
-  const loues=vehicles.filter(v=>norm(v.statut)==='loué').length;
+  const disponibles=vehicles.filter(v=>getVehicleRealStatut(v)==='disponible').length;
+  const loues=vehicles.filter(v=>getVehicleRealStatut(v)==='loué').length;
   const alerts=vehicles.filter(v=>hasAlert(v)).length;
 
   const statutStyle=(s)=>({
@@ -746,7 +767,7 @@ const Vehicles = () => {
       {/* Statuts */}
       <div style={{display:'flex',gap:'7px',flexWrap:'wrap',marginBottom:'16px'}}>
         {STATUT_FILTERS.map(s=>{
-          const count=s.value==='all'?null:vehicles.filter(v=>norm(v.statut)===norm(s.value)).length;
+          const count=s.value==='all'?null:vehicles.filter(v=>norm(getVehicleRealStatut(v))===norm(s.value)).length;
           const active=statFilter===s.value;
           return(
             <button key={s.value} onClick={()=>{setStatFilter(s.value);setCurrentPage(1);}}
@@ -781,7 +802,8 @@ const Vehicles = () => {
       ) : (
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(300px,1fr))',gap:'18px'}}>
           {paginated.map(v=>{
-            const stats=getVehicleStats(v.id),st=statutStyle(v.statut),et=etatStyle(v.etat_carrosserie),alert=hasAlert(v);
+            const realStatut = getVehicleRealStatut(v);
+            const stats=getVehicleStats(v.id),st=statutStyle(realStatut),et=etatStyle(v.etat_carrosserie),alert=hasAlert(v);
             const cat=classifyVehicle(v),catInfo=CATEGORIES.find(c=>c.key===cat);
             return(
               <div key={v.id} style={{background:'white',borderRadius:'14px',border:`1.5px solid ${alert?'#FECACA':'#DDE3ED'}`,overflow:'hidden',transition:'box-shadow 0.15s',boxShadow:'0 1px 4px rgba(0,0,0,0.06)'}}
@@ -791,7 +813,7 @@ const Vehicles = () => {
                   <img src={getCarPhoto(v)} alt={`${v.marque} ${v.modele}`} style={{width:'100%',height:'100%',objectFit:'cover'}} onError={e=>{e.target.src=CAR_PHOTOS.default;}}/>
                   <div style={{position:'absolute',top:'10px',left:'10px',display:'flex',gap:'5px',flexWrap:'wrap'}}>
                     <span style={{background:st.bg,color:st.color,padding:'3px 10px',borderRadius:'12px',fontSize:'11px',fontWeight:'700',backdropFilter:'blur(4px)'}}>{st.label}</span>
-                    {getAge(v.date_acquisition)>=3.5&&v.statut!=='a_vendre'&&v.statut!=='vendu'&&(
+                    {getAge(v.date_acquisition)>=3.5&&realStatut!=='a_vendre'&&realStatut!=='vendu'&&(
                       <span style={{fontSize:'10px',fontWeight:'800',padding:'2px 6px',borderRadius:'4px',background:'rgba(232,160,32,0.9)',color:'white'}}>+3.5a</span>
                     )}
                     <span style={{background:'rgba(255,255,255,0.9)',color:'#64748B',padding:'3px 8px',borderRadius:'10px',fontSize:'10.5px',fontWeight:'600',display:'flex',alignItems:'center',gap:'3px'}}>{catInfo?.icon} {catInfo?.label}</span>
@@ -839,13 +861,13 @@ const Vehicles = () => {
                       <button onClick={()=>setRapportVeh(v)} style={{flex:1,padding:'8px',background:'#F3EEFF',color:'#7C3AED',border:'1.5px solid #DDD6FE',borderRadius:'8px',cursor:'pointer',fontWeight:'700',fontSize:'12.5px',display:'flex',alignItems:'center',justifyContent:'center',gap:'5px'}}><Eye size={13}/> Rapport État</button>
                       {isAdmin&&<button onClick={()=>handleDelete(v.id)} style={{width:'36px',padding:'8px',background:'#FEE2E2',color:'#DC2626',border:'none',borderRadius:'8px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><Trash2 size={14}/></button>}
                     </div>
-                    {isAdmin&&v.statut!=='vendu'&&getAge(v.date_acquisition)>=3.5&&v.statut!=='a_vendre'&&(
+                    {isAdmin&&realStatut!=='vendu'&&getAge(v.date_acquisition)>=3.5&&realStatut!=='a_vendre'&&(
                       <button onClick={()=>handleMettreEnVente(v)} style={{width:'100%',padding:'8px',background:'#FEF3DC',color:'#E8A020',border:'1.5px solid #FCD34D',borderRadius:'8px',cursor:'pointer',fontWeight:'700',fontSize:'12px',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}><Tag size={13}/> Mettre en vente</button>
                     )}
-                    {isAdmin&&v.statut==='a_vendre'&&(
+                    {isAdmin&&realStatut==='a_vendre'&&(
                       <button onClick={()=>handleMarquerVendu(v)} style={{width:'100%',padding:'8px',background:'#DCFCE7',color:'#16A34A',border:'1.5px solid #86EFAC',borderRadius:'8px',cursor:'pointer',fontWeight:'700',fontSize:'12px',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}><CheckCircle size={13}/> Marquer comme vendu</button>
                     )}
-                    {v.statut==='vendu'&&(
+                    {realStatut==='vendu'&&(
                       <div style={{width:'100%',padding:'8px',background:'#F1F5F9',color:'#64748B',borderRadius:'8px',fontWeight:'700',fontSize:'12px',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}><Shield size={13}/> Véhicule vendu</div>
                     )}
                   </div>

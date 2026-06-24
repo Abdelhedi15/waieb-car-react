@@ -424,15 +424,14 @@ const ReservationsList = () => {
     return str.includes(search.toLowerCase()) && (filterStatut ? r.statut === filterStatut : true) && (filterAccident ? r.a_accident === true : true);
   }).sort((a, b) => {
     const today = new Date(); today.setHours(0,0,0,0);
-    const finA = new Date(a.date_fin); finA.setHours(0,0,0,0);
-    const finB = new Date(b.date_fin); finB.setHours(0,0,0,0);
-    const debutA = new Date(a.date_debut); const debutB = new Date(b.date_debut);
+    const finA  = new Date(a.date_fin); finA.setHours(0,0,0,0);
+    const finB  = new Date(b.date_fin); finB.setHours(0,0,0,0);
+    // 1. Inspection urgente aujourd'hui — reste en haut
     const urgentA = finA.getTime() === today.getTime() && a.statut === 'confirmée' && !a.inspection_retour_faite;
     const urgentB = finB.getTime() === today.getTime() && b.statut === 'confirmée' && !b.inspection_retour_faite;
-    if (urgentA && !urgentB) return -1; if (!urgentA && urgentB) return 1;
-
-    const actA = debutA <= today && finA >= today, actB = debutB <= today && finB >= today;
-    if (actA && !actB) return -1; if (!actA && actB) return 1;
+    if (urgentA && !urgentB) return -1;
+    if (!urgentA && urgentB) return 1;
+    // 2. Tout le reste : ID décroissant (dernière confirmée en premier)
     return b.id - a.id;
   });
 
