@@ -4,7 +4,7 @@ import {
   User, Car, Banknote, CalendarDays, AlertTriangle,
   CheckCircle, Clock, XCircle, Flag, Phone, Mail,
   CreditCard, ChevronRight, Bell,
-  CalendarCheck, ArrowRight, Send, ClipboardList,
+  ArrowRight, Send, ClipboardList,
 } from 'lucide-react';
 import api from '../api/axios';
 import Pagination from '../components/Pagination';
@@ -44,6 +44,26 @@ const statutConfig = {
   confirmée:  { bg: '#DCFCE7', color: '#166534', label: 'Confirmée',   icon: <CheckCircle size={12} /> },
   terminée:   { bg: '#DBEAFE', color: NAVY,       label: 'Terminée',   icon: <Flag size={12} /> },
   annulée:    { bg: '#FEE2E2', color: RED,         label: 'Annulée',   icon: <XCircle size={12} /> },
+};
+
+// ✅ Détecte les doublons : même véhicule + dates chevauchantes + statut actif
+const detectDoublons = (reservations) => {
+  const actives = reservations.filter(r => ['confirmée','en_attente'].includes(r.statut));
+  const doublonIds = new Set();
+  for (let i = 0; i < actives.length; i++) {
+    for (let j = i + 1; j < actives.length; j++) {
+      const a = actives[i], b = actives[j];
+      if (a.vehicle !== b.vehicle) continue;
+      const debutA = new Date(a.date_debut), finA = new Date(a.date_fin);
+      const debutB = new Date(b.date_debut), finB = new Date(b.date_fin);
+      // Chevauchement si début de l'un est avant la fin de l'autre
+      if (debutA <= finB && debutB <= finA) {
+        doublonIds.add(a.id);
+        doublonIds.add(b.id);
+      }
+    }
+  }
+  return doublonIds;
 };
 
 const PaymentBar = ({ solde, reservation }) => {
@@ -102,9 +122,9 @@ const PaymentBar = ({ solde, reservation }) => {
   );
 };
 
+// ✅ FIX — Banner : AUJOURD'HUI SEULEMENT
 const RetourAlertBanner = ({ reservations, clients, vehicles, onOpen }) => {
   if (!reservations || reservations.length === 0) return null;
-  const today = new Date(); today.setHours(0,0,0,0);
   return (
     <div style={{
       background: 'linear-gradient(135deg, #4C1D95 0%, #5B21B6 50%, #6D28D9 100%)',
@@ -123,23 +143,17 @@ const RetourAlertBanner = ({ reservations, clients, vehicles, onOpen }) => {
             </span>
           </div>
           <div>
-            <div style={{ fontWeight: '800', fontSize: '15px', color: 'white' }}>🔍 Inspection de Retour requise</div>
+            <div style={{ fontWeight: '800', fontSize: '15px', color: 'white' }}>🔴 Inspection de Retour — Aujourd'hui</div>
             <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>
-              {reservations.length} réservation(s) arrivant à échéance — inspection obligatoire
+              {reservations.length} réservation(s) se terminent aujourd'hui — inspection obligatoire avant clôture
             </div>
           </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'rgba(255,255,255,0.65)', fontWeight: '600' }}>
-          <div style={{ width: '8px', height: '8px', background: '#A78BFA', borderRadius: '50%' }}/>
-          À compléter avant clôture
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {reservations.map(r => {
           const client  = clients?.find(c => c.id === r.client);
           const vehicle = vehicles?.find(v => v.id === r.vehicle);
-          const fin     = new Date(r.date_fin); fin.setHours(0,0,0,0);
-          const isToday = fin.getTime() === today.getTime();
           return (
             <div key={r.id} style={{
               background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)',
@@ -152,8 +166,8 @@ const RetourAlertBanner = ({ reservations, clients, vehicles, onOpen }) => {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
                     <span style={{ fontWeight: '800', color: 'white', fontSize: '14px' }}>Rés. #{r.id}</span>
-                    <span style={{ background: isToday ? '#EF4444' : '#F59E0B', color: 'white', padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '800' }}>
-                      {isToday ? '🔴 Aujourd\'hui' : '🟡 Demain'}
+                    <span style={{ background: '#EF4444', color: 'white', padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '800' }}>
+                      🔴 Aujourd'hui
                     </span>
                   </div>
                   <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
@@ -206,10 +220,7 @@ const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConf
   }, [reservation, vehicle]);
 
   const calcDays = (d1, d2) => Math.max(1, Math.round((new Date(d2) - new Date(d1)) / 86400000));
-  const originalDays = calcDays(reservation.date_debut, reservation.date_fin);
-  const newDays      = calcDays(reservation.date_debut, newDateFin);
-  const extraDays    = Math.max(0, newDays - originalDays);
-  const extraCost    = extraDays > 0 && selectedVehicle ? (extraDays * parseFloat(selectedVehicle.prix_journalier)).toFixed(2) : '0.00';
+  const newDays = calcDays(reservation.date_debut, newDateFin);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -225,14 +236,13 @@ const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConf
             </div>
           ))}
         </div>
-
         {step === 1 && (
           <>
             <h2 style={{ color: RED, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
               <AlertTriangle size={20} /> Accident déclaré — Notifier le client
             </h2>
             <div style={{ background: '#FEE2E2', border: '1px solid #FECACA', borderRadius: '10px', padding: '14px', marginBottom: '16px', fontSize: '13px' }}>
-              <div style={{ fontWeight: '700', color: RED, marginBottom: '8px' }}><AlertTriangle size={14} style={{ verticalAlign: 'middle' }} /> Réservation #{reservation.id}</div>
+              <div style={{ fontWeight: '700', color: RED, marginBottom: '8px' }}>Réservation #{reservation.id}</div>
               <div style={{ color: '#7F1D1D' }}>Véhicule: <strong>{vehicle?.marque} {vehicle?.modele}</strong> ({vehicle?.immatriculation})</div>
               <div style={{ color: '#7F1D1D', marginTop: '4px' }}>Période: {reservation.date_debut} → {reservation.date_fin}</div>
             </div>
@@ -252,7 +262,6 @@ const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConf
             </div>
           </>
         )}
-
         {step === 2 && (
           <>
             <h2 style={{ color: NAVY, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
@@ -294,7 +303,6 @@ const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConf
             </div>
           </>
         )}
-
         {step === 3 && selectedVehicle && (
           <>
             <h2 style={{ color: GREEN, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
@@ -444,21 +452,19 @@ const ReservationsList = () => {
     catch (err) { console.error(err); }
   };
 
+  // ✅ FIX 1 — AUJOURD'HUI SEULEMENT
   const getReservationsAInspecter = () => {
     const today = new Date(); today.setHours(0,0,0,0);
-    const demain = new Date(today); demain.setDate(today.getDate() + 1);
     return reservations.filter(r => {
       if (r.statut !== 'confirmée') return false;
       if (r.inspection_retour_faite) return false;
       const fin = new Date(r.date_fin); fin.setHours(0,0,0,0);
-      return fin >= today && fin <= demain;
+      return fin.getTime() === today.getTime(); // ← UNIQUEMENT aujourd'hui
     });
   };
 
-  // ✅ FIX — handleRetourConfirm : vehicle update ne bloque plus la sauvegarde
   const handleRetourConfirm = async (data) => {
     try {
-      // ÉTAPE 1 — Sauvegarde inspection + passe réservation en terminée
       await api.patch(`/reservations/${data.reservation_id}/`, {
         inspection_retour_faite: true,
         statut:                  'terminée',
@@ -470,8 +476,6 @@ const ReservationsList = () => {
         eraflures_retour:        data.eraflures_retour,
         bosses_retour:           data.bosses_retour,
       });
-
-      // ÉTAPE 2 — Mise à jour véhicule (séparée — ne bloque PAS si erreur 404)
       try {
         const newEtat = data.etat_retour === 'dommages' ? 'dommages'
                       : data.etat_retour === 'defauts'  ? 'defauts'
@@ -479,20 +483,15 @@ const ReservationsList = () => {
         await api.patch(`/vehicles/${retourModal.vehicle.id}/`, {
           statut:           'disponible',
           etat_carrosserie: newEtat,
-          ...(data.kilometrage_retour
-            ? { kilometrage: data.kilometrage_retour } : {}),
+          ...(data.kilometrage_retour ? { kilometrage: data.kilometrage_retour } : {}),
         });
       } catch (vehicleErr) {
-        // Vehicle update ignoré — inspection quand même sauvegardée ✅
-        console.warn('[Retour] Vehicle update skipped:',
-          vehicleErr?.response?.status, vehicleErr?.message);
+        console.warn('[Retour] Vehicle update skipped:', vehicleErr?.response?.status);
       }
-
       await fetchAll();
       setRetourModal(null);
     } catch (e) {
-      alert('Erreur lors de l\'enregistrement: '
-        + JSON.stringify(e.response?.data));
+      alert('Erreur lors de l\'enregistrement: ' + JSON.stringify(e.response?.data));
     }
   };
 
@@ -500,7 +499,10 @@ const ReservationsList = () => {
   const getVehicle  = id => vehicles.find(v => v.id === id);
   const getContract = id => contracts.find(c => c.reservation === id);
 
-  // ✅ FIX SORT — Aujourd'hui en premier, futur proche, puis passé
+  // ✅ Détection doublons
+  const doublonIds = detectDoublons(reservations);
+
+  // ✅ FIX 3 — SORT : urgent aujourd'hui → actif → ID décroissant
   const filtered = reservations
     .filter(r => {
       const cl = getClient(r.client);
@@ -511,35 +513,24 @@ const ReservationsList = () => {
         && (filterAccident ? r.a_accident === true     : true);
     })
     .sort((a, b) => {
-      const today    = new Date(); today.setHours(0,0,0,0);
-      const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-
+      const today = new Date(); today.setHours(0,0,0,0);
       const debutA = new Date(a.date_debut), finA = new Date(a.date_fin);
       const debutB = new Date(b.date_debut), finB = new Date(b.date_fin);
 
-      // 1 — Active AUJOURD'HUI en premier
+      // 1 — Fin AUJOURD'HUI + confirmée + pas inspectée (urgent)
+      const urgentA = finA.getTime() === today.getTime() && a.statut === 'confirmée' && !a.inspection_retour_faite;
+      const urgentB = finB.getTime() === today.getTime() && b.statut === 'confirmée' && !b.inspection_retour_faite;
+      if (urgentA && !urgentB) return -1;
+      if (!urgentA && urgentB) return 1;
+
+      // 2 — Active aujourd'hui
       const activeA = debutA <= today && finA >= today;
       const activeB = debutB <= today && finB >= today;
       if (activeA && !activeB) return -1;
       if (!activeA && activeB) return 1;
 
-      // 2 — Se termine aujourd'hui ou demain (inspection urgente)
-      const urgentA = finA >= today && finA <= tomorrow;
-      const urgentB = finB >= today && finB <= tomorrow;
-      if (urgentA && !urgentB) return -1;
-      if (!urgentA && urgentB) return 1;
-
-      // 3 — Futur proche : ascendant (le plus tôt en premier)
-      if (debutA >= today && debutB >= today) return debutA - debutB;
-
-      // 4 — Passé récent : descendant (le plus récent en premier)
-      if (debutA < today && debutB < today) return debutB - debutA;
-
-      // 5 — Futur avant passé
-      if (debutA >= today && debutB < today) return -1;
-      if (debutA < today  && debutB >= today) return 1;
-
-      return 0;
+      // 3 — Tout le reste : ID décroissant (plus récent en premier)
+      return b.id - a.id;
     });
 
   const totalRestant  = Object.values(soldes).reduce((s, x) => s + Math.max(0, x.montant_restant || 0), 0);
@@ -559,7 +550,8 @@ const ReservationsList = () => {
       const newAcompte = (parseFloat(newTotal) * acomptePct).toFixed(2);
       await api.patch(`/reservations/${reservation.id}/`, {
         vehicle: newVehicle.id, date_fin: newDateFin,
-        vehicule_remplace: reservation.vehicle, raison_remplacement: 'Accident — véhicule indisponible',
+        vehicule_remplace: reservation.vehicle,
+        raison_remplacement: 'Accident — véhicule indisponible',
         montant_total: newTotal, acompte: newAcompte,
       });
       if (client?.email) {
@@ -611,7 +603,23 @@ const ReservationsList = () => {
         ))}
       </div>
 
-      {/* RetourCheck Banner */}
+      {/* ✅ Alerte doublons détectés */}
+      {doublonIds.size > 0 && (
+        <div style={{ background: '#FEF9C3', border: `2px solid ${AMBER}`, borderRadius: '12px',
+          padding: '12px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <AlertTriangle size={18} color="#D97706" style={{ flexShrink: 0 }}/>
+          <div>
+            <div style={{ fontWeight: '800', fontSize: '13px', color: '#92580A' }}>
+              ⚠️ {doublonIds.size} réservation(s) en conflit détectée(s)
+            </div>
+            <div style={{ fontSize: '12px', color: '#92580A', marginTop: '2px' }}>
+              Même véhicule réservé sur des dates qui se chevauchent — vérifiez et annulez les doublons.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RetourCheck Banner — AUJOURD'HUI SEULEMENT */}
       <RetourAlertBanner
         reservations={aInspecter}
         clients={clients}
@@ -664,26 +672,26 @@ const ReservationsList = () => {
           const days     = Math.max(1, Math.round((new Date(r.date_fin) - new Date(r.date_debut)) / 86400000));
           const statut   = statutConfig[r.statut] || { bg: '#F1F5F9', color: '#64748B', label: r.statut, icon: null };
           const isSolde  = solde && solde.montant_restant <= 0;
+          const isDoublon = doublonIds.has(r.id);
 
           const today = new Date(); today.setHours(0,0,0,0);
           const dateFin = new Date(r.date_fin); dateFin.setHours(0,0,0,0);
-          const demain  = new Date(today); demain.setDate(today.getDate() + 1);
 
           const isFinAujourdhui = dateFin.getTime() === today.getTime();
-          const isFinDemain     = dateFin.getTime() === demain.getTime();
-          const needsRetour     = (isFinAujourdhui || isFinDemain) && r.statut === 'confirmée' && !r.inspection_retour_faite;
+          // ✅ FIX 2 — needsRetour UNIQUEMENT aujourd'hui
+          const needsRetour = isFinAujourdhui && r.statut === 'confirmée' && !r.inspection_retour_faite;
           const hasAccidentNoReplacement = r.a_accident && !r.vehicule_remplace && new Date(r.date_debut) >= today && !isSolde;
 
           return (
             <div key={r.id} style={{
               background: 'white', borderRadius: '14px', overflow: 'hidden',
-              border: `1.5px solid ${needsRetour ? PURPLE : isSolde ? '#86EFAC' : r.a_accident ? '#FECACA' : '#DDE3ED'}`,
-              boxShadow: needsRetour ? '0 0 0 3px rgba(124,58,237,0.12)' : '0 1px 6px rgba(0,0,0,0.05)',
+              border: `1.5px solid ${isDoublon ? AMBER : needsRetour ? PURPLE : isSolde ? '#86EFAC' : r.a_accident ? '#FECACA' : '#DDE3ED'}`,
+              boxShadow: isDoublon ? `0 0 0 3px ${AMBER}33` : needsRetour ? '0 0 0 3px rgba(124,58,237,0.12)' : '0 1px 6px rgba(0,0,0,0.05)',
             }}>
               <div style={{
                 padding: '12px 20px', borderBottom: '1px solid #F0F2F5',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px',
-                background: needsRetour ? '#FAF5FF' : isSolde ? '#F0FFF4' : r.statut === 'confirmée' ? '#EFF4FB' : r.statut === 'annulée' ? '#FFF5F5' : '#FFFBEB',
+                background: isDoublon ? '#FFFDE7' : needsRetour ? '#FAF5FF' : isSolde ? '#F0FFF4' : r.statut === 'confirmée' ? '#EFF4FB' : r.statut === 'annulée' ? '#FFF5F5' : '#FFFBEB',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <strong style={{ color: NAVY, fontSize: '15px' }}>Rés. #{r.id}</strong>
@@ -691,6 +699,12 @@ const ReservationsList = () => {
                   <span style={{ background: statut.bg, color: statut.color, padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     {statut.icon} {statut.label}
                   </span>
+                  {/* ✅ Badge doublon */}
+                  {isDoublon && (
+                    <span style={{ background: '#FEF9C3', color: '#D97706', padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <AlertTriangle size={12} /> Doublon détecté
+                    </span>
+                  )}
                   {r.a_accident && <span style={{ background: '#FEE2E2', color: RED, padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={12} /> Accident</span>}
                   {r.vehicule_remplace && <span style={{ background: '#DCFCE7', color: GREEN, padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700' }}><CheckCircle size={12} style={{ verticalAlign: 'middle' }} /> Remplacé</span>}
                   {isSolde && <span style={{ background: '#DCFCE7', color: GREEN, padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12} /> Soldé</span>}
@@ -701,6 +715,7 @@ const ReservationsList = () => {
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  {/* ✅ FIX 2 — bouton inspection UNIQUEMENT aujourd'hui */}
                   {needsRetour && (
                     <button onClick={() => setRetourModal({ reservation: r, client, vehicle })}
                       style={{
@@ -708,10 +723,10 @@ const ReservationsList = () => {
                         fontWeight: '800', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '6px',
                         background: `linear-gradient(135deg, ${PURPLE}, #5B21B6)`,
                         color: 'white', boxShadow: '0 3px 10px rgba(124,58,237,0.3)',
-                        animation: isFinAujourdhui ? 'pulse 2s infinite' : 'none',
+                        animation: 'pulse 2s infinite',
                       }}>
                       <ClipboardList size={14} />
-                      {isFinAujourdhui ? '🔴 Inspecter maintenant' : '🟡 Inspecter demain'}
+                      🔴 Inspecter maintenant
                     </button>
                   )}
                   {hasAccidentNoReplacement && (
