@@ -46,8 +46,6 @@ const statutConfig = {
   annulée:    { bg: '#FEE2E2', color: RED,         label: 'Annulée',   icon: <XCircle size={12} /> },
 };
 
-// ✅ Détection doublons
-
 const PaymentBar = ({ solde, reservation }) => {
   if (!solde) return (
     <div style={{ fontSize: '13px', color: '#64748B' }}>
@@ -79,8 +77,7 @@ const PaymentBar = ({ solde, reservation }) => {
       </div>
       <div style={{ marginBottom: '10px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#64748B', marginBottom: '4px', fontWeight: '600' }}>
-          <span>Progression</span>
-          <span style={{ fontWeight: '800', color: barColor }}>{pct.toFixed(0)}%</span>
+          <span>Progression</span><span style={{ fontWeight: '800', color: barColor }}>{pct.toFixed(0)}%</span>
         </div>
         <div style={{ background: '#F0F2F5', borderRadius: '6px', height: '10px', overflow: 'hidden' }}>
           <div style={{ background: barColor, height: '100%', width: `${pct}%`, borderRadius: '6px', transition: 'width 0.5s' }} />
@@ -104,36 +101,19 @@ const PaymentBar = ({ solde, reservation }) => {
   );
 };
 
-// ✅ FIX — Banner AUJOURD'HUI SEULEMENT
 const RetourAlertBanner = ({ reservations, clients, vehicles, onOpen }) => {
   if (!reservations || reservations.length === 0) return null;
   return (
-    <div style={{
-      background: 'linear-gradient(135deg, #4C1D95 0%, #5B21B6 50%, #6D28D9 100%)',
-      borderRadius: '16px', padding: '16px 20px', marginBottom: '22px',
-      boxShadow: '0 8px 32px rgba(109,40,217,0.3)',
-      position: 'relative', overflow: 'hidden',
-      animation: 'slideIn 0.4s ease-out',
-    }}>
+    <div style={{ background: 'linear-gradient(135deg, #4C1D95 0%, #5B21B6 50%, #6D28D9 100%)', borderRadius: '16px', padding: '16px 20px', marginBottom: '22px', boxShadow: '0 8px 32px rgba(109,40,217,0.3)', position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: '-30px', right: '-30px', width: '120px', height: '120px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }}/>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '44px', height: '44px', background: 'rgba(255,255,255,0.15)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
-            <ClipboardList size={22} color="white" />
-            <span style={{ position: 'absolute', top: '-7px', right: '-7px', background: '#EF4444', color: 'white', borderRadius: '50%', width: '20px', height: '20px', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900' }}>
-              {reservations.length}
-            </span>
-          </div>
-          <div>
-            <div style={{ fontWeight: '800', fontSize: '15px', color: 'white' }}>🔴 Inspection de Retour — Aujourd'hui</div>
-            <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>
-              {reservations.length} réservation(s) se terminent aujourd'hui — inspection obligatoire avant clôture
-            </div>
-          </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+        <div style={{ width: '44px', height: '44px', background: 'rgba(255,255,255,0.15)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', flexShrink: 0 }}>
+          <ClipboardList size={22} color="white" />
+          <span style={{ position: 'absolute', top: '-7px', right: '-7px', background: '#EF4444', color: 'white', borderRadius: '50%', width: '20px', height: '20px', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900' }}>{reservations.length}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'rgba(255,255,255,0.65)', fontWeight: '600' }}>
-          <div style={{ width: '8px', height: '8px', background: '#A78BFA', borderRadius: '50%' }}/>
-          À compléter avant clôture
+        <div>
+          <div style={{ fontWeight: '800', fontSize: '15px', color: 'white' }}>🔴 Inspection de Retour</div>
+          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>{reservations.length} réservation(s) — inspection obligatoire avant clôture</div>
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -141,37 +121,27 @@ const RetourAlertBanner = ({ reservations, clients, vehicles, onOpen }) => {
           const client  = clients?.find(c => c.id === r.client);
           const vehicle = vehicles?.find(v => v.id === r.vehicle);
           return (
-            <div key={r.id} style={{
-              background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)',
-              borderRadius: '12px', padding: '12px 16px',
-              border: '1px solid rgba(255,255,255,0.18)',
-              display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: '16px',
-            }}>
+            <div key={r.id} style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(8px)', borderRadius: '12px', padding: '12px 16px', border: '1px solid rgba(255,255,255,0.18)', display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: '16px' }}>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                 <img src={getCarPhoto(vehicle)} alt="" style={{ width: '54px', height: '40px', objectFit: 'cover', borderRadius: '8px', flexShrink: 0 }} onError={e => { e.target.src = CAR_PHOTOS.default; }} />
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
                     <span style={{ fontWeight: '800', color: 'white', fontSize: '14px' }}>Rés. #{r.id}</span>
-                    <span style={{ background: '#EF4444', color: 'white', padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '800' }}>🔴 Aujourd'hui</span>
+                    <span style={{ background: '#EF4444', color: 'white', padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '800' }}>Fin: {r.date_fin}</span>
                   </div>
                   <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.75)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                     <span>🚗 {vehicle ? `${vehicle.marque} ${vehicle.modele}` : '—'} ({vehicle?.immatriculation})</span>
                     <span>👤 {client ? `${client.prenom} ${client.nom}` : '—'}</span>
-                    <span>📅 Fin: {r.date_fin}</span>
                   </div>
                 </div>
               </div>
-              <button onClick={() => onOpen(r)}
-                style={{ padding: '10px 18px', background: 'white', color: PURPLE, border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', transition: 'transform 0.15s' }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.04)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
+              <button onClick={() => onOpen(r)} style={{ padding: '10px 18px', background: 'white', color: PURPLE, border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: '800', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
                 <ClipboardList size={14} /> Inspecter
               </button>
             </div>
           );
         })}
       </div>
-      <style>{`@keyframes slideIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
 };
@@ -205,78 +175,70 @@ const AccidentModal = ({ reservation, client, vehicle, vehicles, onClose, onConf
             </div>
           ))}
         </div>
-        {step === 1 && (
-          <>
-            <h2 style={{ color: RED, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><AlertTriangle size={20} /> Accident déclaré — Notifier le client</h2>
-            <div style={{ background: '#FEE2E2', border: '1px solid #FECACA', borderRadius: '10px', padding: '14px', marginBottom: '16px', fontSize: '13px' }}>
-              <div style={{ fontWeight: '700', color: RED, marginBottom: '8px' }}>Réservation #{reservation.id}</div>
-              <div style={{ color: '#7F1D1D' }}>Véhicule: <strong>{vehicle?.marque} {vehicle?.modele}</strong> ({vehicle?.immatriculation})</div>
-              <div style={{ color: '#7F1D1D', marginTop: '4px' }}>Période: {reservation.date_debut} → {reservation.date_fin}</div>
-            </div>
-            {client && (
-              <div style={{ background: '#F8FAFC', border: '1px solid #DDE3ED', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
-                <div style={{ fontWeight: '700', color: NAVY, marginBottom: '10px', fontSize: '13px' }}>Client à notifier</div>
-                <div style={{ fontWeight: '700', fontSize: '15px' }}>{client.prenom} {client.nom}</div>
-                {client.telephone && <div style={{ fontSize: '12.5px', color: '#64748B', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}><Phone size={12}/> {client.telephone}</div>}
-                {client.email && <div style={{ fontSize: '12.5px', color: '#64748B', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px' }}><Mail size={12}/> {client.email}</div>}
+        {step === 1 && (<>
+          <h2 style={{ color: RED, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><AlertTriangle size={20} /> Accident déclaré — Notifier le client</h2>
+          <div style={{ background: '#FEE2E2', border: '1px solid #FECACA', borderRadius: '10px', padding: '14px', marginBottom: '16px', fontSize: '13px' }}>
+            <div style={{ fontWeight: '700', color: RED, marginBottom: '8px' }}>Réservation #{reservation.id}</div>
+            <div style={{ color: '#7F1D1D' }}>Véhicule: <strong>{vehicle?.marque} {vehicle?.modele}</strong> ({vehicle?.immatriculation})</div>
+            <div style={{ color: '#7F1D1D', marginTop: '4px' }}>Période: {reservation.date_debut} → {reservation.date_fin}</div>
+          </div>
+          {client && (<div style={{ background: '#F8FAFC', border: '1px solid #DDE3ED', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
+            <div style={{ fontWeight: '700', color: NAVY, marginBottom: '10px', fontSize: '13px' }}>Client à notifier</div>
+            <div style={{ fontWeight: '700', fontSize: '15px' }}>{client.prenom} {client.nom}</div>
+            {client.telephone && <div style={{ fontSize: '12.5px', color: '#64748B', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}><Phone size={12}/> {client.telephone}</div>}
+            {client.email && <div style={{ fontSize: '12.5px', color: '#64748B', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px' }}><Mail size={12}/> {client.email}</div>}
+          </div>)}
+          <div className="modal-actions">
+            <button className="btn btn-outline" onClick={onClose}>Fermer</button>
+            <button className="btn btn-primary" onClick={() => setStep(2)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Proposer un remplacement <ChevronRight size={15}/></button>
+          </div>
+        </>)}
+        {step === 2 && (<>
+          <h2 style={{ color: NAVY, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><Car size={20}/> Choisir un véhicule de remplacement</h2>
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ fontSize: '11px', color: '#64748B', fontWeight: '600', display: 'block', marginBottom: '4px' }}>Date fin</label>
+            <input type="date" value={newDateFin} min={reservation.date_debut} onChange={e => setNewDateFin(e.target.value)} />
+          </div>
+          {loading ? <div style={{ textAlign: 'center', padding: '30px', color: '#64748B' }}>Recherche...</div>
+          : availableVehicles.length === 0 ? <div style={{ background: '#FEE2E2', borderRadius: '10px', padding: '16px', textAlign: 'center', color: RED, fontWeight: '600', fontSize: '13px' }}>Aucun véhicule similaire disponible.</div>
+          : <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '220px', overflowY: 'auto' }}>
+              {availableVehicles.map(v => {
+                const isSelected = selectedVehicle?.id === v.id;
+                return (
+                  <div key={v.id} onClick={() => setSelectedVehicle(v)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', border: `2px solid ${isSelected ? NAVY : '#DDE3ED'}`, borderRadius: '10px', cursor: 'pointer', background: isSelected ? '#EFF4FB' : 'white' }}>
+                    <img src={getCarPhoto(v)} alt={v.marque} style={{ width: '64px', height: '46px', objectFit: 'cover', borderRadius: '6px' }} onError={e => { e.target.src = CAR_PHOTOS.default; }} />
+                    <div style={{ flex: 1 }}><div style={{ fontWeight: '700', fontSize: '14px' }}>{v.marque} {v.modele}</div><div style={{ fontSize: '12px', color: '#64748B' }}>{v.immatriculation}</div></div>
+                    <div style={{ fontWeight: '800', color: GREEN }}>{v.prix_journalier} DT/j</div>
+                  </div>
+                );
+              })}
+            </div>}
+          <div className="modal-actions">
+            <button className="btn btn-outline" onClick={() => setStep(1)}>Retour</button>
+            <button className="btn btn-primary" disabled={!selectedVehicle} onClick={() => setStep(3)} style={{ opacity: selectedVehicle ? 1 : 0.5 }}>Confirmer <ChevronRight size={15}/></button>
+          </div>
+        </>)}
+        {step === 3 && selectedVehicle && (<>
+          <h2 style={{ color: GREEN, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><CheckCircle size={20}/> Confirmer le remplacement</h2>
+          <div style={{ background: '#F8FAFC', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
+            {[
+              { label: 'Nouveau véhicule', value: `${selectedVehicle.marque} ${selectedVehicle.modele} (${selectedVehicle.immatriculation})`, color: GREEN },
+              { label: 'Client',           value: `${client?.prenom} ${client?.nom}` },
+              { label: 'Période',          value: `${reservation.date_debut} → ${newDateFin}` },
+              { label: 'Nouveau total',    value: `${(newDays * parseFloat(selectedVehicle.prix_journalier)).toFixed(2)} DT`, color: NAVY },
+            ].map(row => (
+              <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F0F2F5', fontSize: '13px' }}>
+                <span style={{ color: '#64748B' }}>{row.label}</span>
+                <strong style={{ color: row.color || '#1A2535' }}>{row.value}</strong>
               </div>
-            )}
-            <div className="modal-actions">
-              <button className="btn btn-outline" onClick={onClose}>Fermer</button>
-              <button className="btn btn-primary" onClick={() => setStep(2)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Proposer un remplacement <ChevronRight size={15}/></button>
-            </div>
-          </>
-        )}
-        {step === 2 && (
-          <>
-            <h2 style={{ color: NAVY, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><Car size={20}/> Choisir un véhicule de remplacement</h2>
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ fontSize: '11px', color: '#64748B', fontWeight: '600', display: 'block', marginBottom: '4px' }}>Date fin</label>
-              <input type="date" value={newDateFin} min={reservation.date_debut} onChange={e => setNewDateFin(e.target.value)} />
-            </div>
-            {loading ? <div style={{ textAlign: 'center', padding: '30px', color: '#64748B' }}>Recherche...</div>
-            : availableVehicles.length === 0 ? <div style={{ background: '#FEE2E2', borderRadius: '10px', padding: '16px', textAlign: 'center', color: RED, fontWeight: '600', fontSize: '13px' }}>Aucun véhicule similaire disponible.</div>
-            : <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '220px', overflowY: 'auto' }}>
-                {availableVehicles.map(v => {
-                  const isSelected = selectedVehicle?.id === v.id;
-                  return (
-                    <div key={v.id} onClick={() => setSelectedVehicle(v)} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', border: `2px solid ${isSelected ? NAVY : '#DDE3ED'}`, borderRadius: '10px', cursor: 'pointer', background: isSelected ? '#EFF4FB' : 'white' }}>
-                      <img src={getCarPhoto(v)} alt={v.marque} style={{ width: '64px', height: '46px', objectFit: 'cover', borderRadius: '6px' }} onError={e => { e.target.src = CAR_PHOTOS.default; }} />
-                      <div style={{ flex: 1 }}><div style={{ fontWeight: '700', fontSize: '14px' }}>{v.marque} {v.modele}</div><div style={{ fontSize: '12px', color: '#64748B' }}>{v.immatriculation}</div></div>
-                      <div style={{ fontWeight: '800', color: GREEN }}>{v.prix_journalier} DT/j</div>
-                    </div>
-                  );
-                })}
-              </div>}
-            <div className="modal-actions">
-              <button className="btn btn-outline" onClick={() => setStep(1)}>Retour</button>
-              <button className="btn btn-primary" disabled={!selectedVehicle} onClick={() => setStep(3)} style={{ opacity: selectedVehicle ? 1 : 0.5 }}>Confirmer <ChevronRight size={15}/></button>
-            </div>
-          </>
-        )}
-        {step === 3 && selectedVehicle && (
-          <>
-            <h2 style={{ color: GREEN, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}><CheckCircle size={20}/> Confirmer le remplacement</h2>
-            <div style={{ background: '#F8FAFC', borderRadius: '12px', padding: '16px', marginBottom: '16px' }}>
-              {[
-                { label: 'Nouveau véhicule', value: `${selectedVehicle.marque} ${selectedVehicle.modele} (${selectedVehicle.immatriculation})`, color: GREEN },
-                { label: 'Client',           value: `${client?.prenom} ${client?.nom}` },
-                { label: 'Période',          value: `${reservation.date_debut} → ${newDateFin}` },
-                { label: 'Nouveau total',    value: `${(newDays * parseFloat(selectedVehicle.prix_journalier)).toFixed(2)} DT`, color: NAVY },
-              ].map(row => (
-                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F0F2F5', fontSize: '13px' }}>
-                  <span style={{ color: '#64748B' }}>{row.label}</span>
-                  <strong style={{ color: row.color || '#1A2535' }}>{row.value}</strong>
-                </div>
-              ))}
-            </div>
-            {client?.email && <div style={{ background: '#EFF4FB', border: '1px solid #BFDBFE', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}><Send size={16} color={NAVY}/><div style={{ fontSize: '13px', color: NAVY }}>Email envoyé à <strong>{client.email}</strong></div></div>}
-            <div className="modal-actions">
-              <button className="btn btn-outline" onClick={() => setStep(2)}>Retour</button>
-              <button className="btn btn-primary" style={{ background: GREEN, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => onConfirm(selectedVehicle, newDateFin, reservation, client)}><CheckCircle size={15}/> Confirmer & Envoyer email</button>
-            </div>
-          </>
-        )}
+            ))}
+          </div>
+          {client?.email && <div style={{ background: '#EFF4FB', border: '1px solid #BFDBFE', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}><Send size={16} color={NAVY}/><div style={{ fontSize: '13px', color: NAVY }}>Email envoyé à <strong>{client.email}</strong></div></div>}
+          <div className="modal-actions">
+            <button className="btn btn-outline" onClick={() => setStep(2)}>Retour</button>
+            <button className="btn btn-primary" style={{ background: GREEN, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => onConfirm(selectedVehicle, newDateFin, reservation, client)}><CheckCircle size={15}/> Confirmer & Envoyer email</button>
+          </div>
+        </>)}
       </div>
     </div>
   );
@@ -374,7 +336,6 @@ const ReservationsList = () => {
 
   const handleRefresh = async () => { setRefreshing(true); await fetchAll(); setRefreshing(false); };
 
-  // ✅ FIX — handleAction avec feedback d'erreur visible
   const handleReservationAction = async (id, newStatut) => {
     try {
       await api.patch(`/reservations/${id}/`, { statut: newStatut });
@@ -385,17 +346,20 @@ const ReservationsList = () => {
     }
   };
 
-  // ✅ FIX — AUJOURD'HUI SEULEMENT
+  // ✅ Fenêtre hier + aujourd'hui
   const getReservationsAInspecter = () => {
     const today = new Date(); today.setHours(0,0,0,0);
+    const hier = new Date(today); hier.setDate(hier.getDate() - 1);
     return reservations.filter(r => {
-      if (r.statut !== 'confirmée') return false;
-      if (r.inspection_retour_faite) return false;
+      if (r.statut !== 'confirmée' || r.inspection_retour_faite) return false;
       const fin = new Date(r.date_fin); fin.setHours(0,0,0,0);
-      return fin.getTime() === today.getTime();
+      return fin >= hier && fin <= today;
     });
   };
 
+  // ✅ FIX CRITIQUE — PAS de setRetourModal(null) ici
+  // Le modal reste en état "done" pour afficher le bouton PDF
+  // L'utilisateur ferme lui-même via le bouton "Fermer"
   const handleRetourConfirm = async (data) => {
     try {
       await api.patch(`/reservations/${data.reservation_id}/`, {
@@ -407,9 +371,13 @@ const ReservationsList = () => {
       });
       try {
         const newEtat = data.etat_retour === 'dommages' ? 'dommages' : data.etat_retour === 'defauts' ? 'defauts' : 'excellent';
-        await api.patch(`/vehicles/${retourModal.vehicle.id}/`, { statut: 'disponible', etat_carrosserie: newEtat, ...(data.kilometrage_retour ? { kilometrage: data.kilometrage_retour } : {}) });
+        await api.patch(`/vehicles/${retourModal.vehicle.id}/`, {
+          statut: 'disponible', etat_carrosserie: newEtat,
+          ...(data.kilometrage_retour ? { kilometrage: data.kilometrage_retour } : {})
+        });
       } catch (vehicleErr) { console.warn('[Retour] Vehicle update skipped:', vehicleErr?.response?.status); }
-      await fetchAll(); setRetourModal(null);
+      await fetchAll();
+      // ✅ PAS de setRetourModal(null) — modal reste ouvert pour PDF
     } catch (e) { alert('Erreur: ' + JSON.stringify(e.response?.data)); }
   };
 
@@ -417,21 +385,19 @@ const ReservationsList = () => {
   const getVehicle  = id => vehicles.find(v => v.id === id);
   const getContract = id => contracts.find(c => c.reservation === id);
 
-  // ✅ FIX SORT — urgent → actif → ID décroissant
   const filtered = reservations.filter(r => {
     const cl = getClient(r.client), ve = getVehicle(r.vehicle);
     const str = `${cl?.nom} ${cl?.prenom} ${cl?.cin} ${ve?.marque} ${ve?.modele} ${ve?.immatriculation}`.toLowerCase();
     return str.includes(search.toLowerCase()) && (filterStatut ? r.statut === filterStatut : true) && (filterAccident ? r.a_accident === true : true);
   }).sort((a, b) => {
     const today = new Date(); today.setHours(0,0,0,0);
-    const finA  = new Date(a.date_fin); finA.setHours(0,0,0,0);
-    const finB  = new Date(b.date_fin); finB.setHours(0,0,0,0);
-    // 1. Inspection urgente aujourd'hui — reste en haut
-    const urgentA = finA.getTime() === today.getTime() && a.statut === 'confirmée' && !a.inspection_retour_faite;
-    const urgentB = finB.getTime() === today.getTime() && b.statut === 'confirmée' && !b.inspection_retour_faite;
+    const hier = new Date(today); hier.setDate(hier.getDate() - 1);
+    const finA = new Date(a.date_fin); finA.setHours(0,0,0,0);
+    const finB = new Date(b.date_fin); finB.setHours(0,0,0,0);
+    const urgentA = finA >= hier && finA <= today && a.statut === 'confirmée' && !a.inspection_retour_faite;
+    const urgentB = finB >= hier && finB <= today && b.statut === 'confirmée' && !b.inspection_retour_faite;
     if (urgentA && !urgentB) return -1;
     if (!urgentA && urgentB) return 1;
-    // 2. Tout le reste : ID décroissant (dernière confirmée en premier)
     return b.id - a.id;
   });
 
@@ -464,21 +430,19 @@ const ReservationsList = () => {
         <h1 className="page-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
           <List size={22} color={NAVY} /> Liste des Réservations
         </h1>
-        <button onClick={handleRefresh} disabled={refreshing}
-          style={{ padding: '9px 18px', background: NAVY, color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <button onClick={handleRefresh} disabled={refreshing} style={{ padding: '9px 18px', background: NAVY, color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
           <RefreshCw size={15} className={refreshing ? 'spin' : ''} />
           {refreshing ? 'Actualisation...' : 'Actualiser'}
         </button>
       </div>
 
-      {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: '14px', marginBottom: '22px' }}>
         {[
-          { label: 'Total réservations', value: reservations.length,                 color: NAVY,   bg: '#EFF4FB', icon: <List size={18} /> },
-          { label: 'Total encaissé',     value: `${totalEncaisse.toFixed(2)} DT`,    color: GREEN,  bg: '#DCFCE7', icon: <Banknote size={18} /> },
-          { label: 'Total restant',      value: `${totalRestant.toFixed(2)} DT`,     color: RED,    bg: '#FEE2E2', icon: <Clock size={18} /> },
-          { label: 'Soldées',            value: `${nbSoldes}/${reservations.length}`,color: PURPLE, bg: '#F3EEFF', icon: <CheckCircle size={18} /> },
-          { label: 'Accidents',          value: nbAccidents,                          color: RED,    bg: '#FEE2E2', icon: <AlertTriangle size={18} /> },
+          { label: 'Total réservations', value: reservations.length,                  color: NAVY,   bg: '#EFF4FB', icon: <List size={18} /> },
+          { label: 'Total encaissé',     value: `${totalEncaisse.toFixed(2)} DT`,     color: GREEN,  bg: '#DCFCE7', icon: <Banknote size={18} /> },
+          { label: 'Total restant',      value: `${totalRestant.toFixed(2)} DT`,      color: RED,    bg: '#FEE2E2', icon: <Clock size={18} /> },
+          { label: 'Soldées',            value: `${nbSoldes}/${reservations.length}`, color: PURPLE, bg: '#F3EEFF', icon: <CheckCircle size={18} /> },
+          { label: 'Accidents',          value: nbAccidents,                           color: RED,    bg: '#FEE2E2', icon: <AlertTriangle size={18} /> },
         ].map(s => (
           <div key={s.label} className="card" style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 16px' }}>
             <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: s.bg, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{s.icon}</div>
@@ -490,16 +454,11 @@ const ReservationsList = () => {
         ))}
       </div>
 
-
-
-      {/* Inspection banner */}
       <RetourAlertBanner reservations={aInspecter} clients={clients} vehicles={vehicles}
         onOpen={r => setRetourModal({ reservation: r, client: getClient(r.client), vehicle: getVehicle(r.vehicle) })} />
 
-      {/* Mobile panel */}
       <MobileNotifPanel pendingReservations={reservations.filter(r => r.statut === 'en_attente')} clients={clients} vehicles={vehicles} onAction={handleReservationAction} />
 
-      {/* Filters */}
       <div className="card" style={{ marginBottom: '16px', padding: '14px 18px' }}>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
@@ -520,13 +479,10 @@ const ReservationsList = () => {
             style={{ padding: '8px 14px', background: filterAccident ? '#FEE2E2' : 'white', color: filterAccident ? RED : '#64748B', border: `1.5px solid ${filterAccident ? RED : '#DDE3ED'}`, borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <AlertTriangle size={14} /> {filterAccident ? `Accidents (${nbAccidents})` : 'Avec accident'}
           </button>
-          <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '600' }}>
-            <strong style={{ color: '#1A2535' }}>{filtered.length}</strong> résultat(s)
-          </div>
+          <div style={{ fontSize: '13px', color: '#64748B', fontWeight: '600' }}><strong style={{ color: '#1A2535' }}>{filtered.length}</strong> résultat(s)</div>
         </div>
       </div>
 
-      {/* List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         {paginated.map(r => {
           const client = getClient(r.client), vehicle = getVehicle(r.vehicle), contract = getContract(r.id), solde = soldes[r.id];
@@ -534,24 +490,18 @@ const ReservationsList = () => {
           const statut = statutConfig[r.statut] || { bg: '#F1F5F9', color: '#64748B', label: r.statut, icon: null };
           const isSolde = solde && solde.montant_restant <= 0;
           const today = new Date(); today.setHours(0,0,0,0);
+          const hier = new Date(today); hier.setDate(hier.getDate() - 1);
           const dateFin = new Date(r.date_fin); dateFin.setHours(0,0,0,0);
-          const isFinAujourdhui = dateFin.getTime() === today.getTime();
-          // ✅ FIX — UNIQUEMENT aujourd'hui
-          const needsRetour = isFinAujourdhui && r.statut === 'confirmée' && !r.inspection_retour_faite;
+          const needsRetour = dateFin >= hier && dateFin <= today && r.statut === 'confirmée' && !r.inspection_retour_faite;
           const hasAccidentNoReplacement = r.a_accident && !r.vehicule_remplace && new Date(r.date_debut) >= today && !isSolde;
 
           return (
-            <div key={r.id} style={{
-              background: 'white', borderRadius: '14px', overflow: 'hidden',
-              border: `1.5px solid ${needsRetour ? PURPLE : isSolde ? '#86EFAC' : r.a_accident ? '#FECACA' : '#DDE3ED'}`,
-              boxShadow: needsRetour ? '0 0 0 3px rgba(124,58,237,0.12)' : '0 1px 6px rgba(0,0,0,0.05)',
-            }}>
+            <div key={r.id} style={{ background: 'white', borderRadius: '14px', overflow: 'hidden', border: `1.5px solid ${needsRetour ? PURPLE : isSolde ? '#86EFAC' : r.a_accident ? '#FECACA' : '#DDE3ED'}`, boxShadow: needsRetour ? '0 0 0 3px rgba(124,58,237,0.12)' : '0 1px 6px rgba(0,0,0,0.05)' }}>
               <div style={{ padding: '12px 20px', borderBottom: '1px solid #F0F2F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', background: needsRetour ? '#FAF5FF' : isSolde ? '#F0FFF4' : r.statut === 'confirmée' ? '#EFF4FB' : r.statut === 'annulée' ? '#FFF5F5' : '#FFFBEB' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <strong style={{ color: NAVY, fontSize: '15px' }}>Rés. #{r.id}</strong>
                   {contract && <span style={{ color: PURPLE, fontWeight: '700', fontSize: '12.5px', background: '#F3EEFF', padding: '2px 8px', borderRadius: '6px' }}>{contract.numero}</span>}
                   <span style={{ background: statut.bg, color: statut.color, padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>{statut.icon} {statut.label}</span>
-
                   {r.a_accident && <span style={{ background: '#FEE2E2', color: RED, padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={12}/> Accident</span>}
                   {r.vehicule_remplace && <span style={{ background: '#DCFCE7', color: GREEN, padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12}/> Remplacé</span>}
                   {isSolde && <span style={{ background: '#DCFCE7', color: GREEN, padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12}/> Soldé</span>}
@@ -564,7 +514,6 @@ const ReservationsList = () => {
                       <ClipboardList size={14}/> 🔴 Inspecter maintenant
                     </button>
                   )}
-
                   {hasAccidentNoReplacement && (
                     <button onClick={() => setAccidentModal({ reservation: r, client, vehicle })}
                       style={{ padding: '6px 12px', background: RED, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -572,61 +521,49 @@ const ReservationsList = () => {
                     </button>
                   )}
                   <div style={{ fontSize: '13px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <CalendarDays size={13}/>
-                    {r.date_debut} <ArrowRight size={12}/> {r.date_fin}
+                    <CalendarDays size={13}/>{r.date_debut} <ArrowRight size={12}/> {r.date_fin}
                     <span style={{ background: '#F1F5F9', padding: '2px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: '700', color: '#1A2535' }}>{days} j</span>
                   </div>
                 </div>
               </div>
-
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr' }}>
-                {/* Client */}
                 <div style={{ padding: '16px 20px', borderRight: '1px solid #F0F2F5' }}>
                   <div style={{ fontSize: '10.5px', fontWeight: '800', color: NAVY, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}><User size={12}/> Client</div>
-                  {client ? (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '10px' }}>
-                        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#EFF4FB', color: NAVY, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '12px', flexShrink: 0 }}>{client.prenom?.charAt(0)}{client.nom?.charAt(0)}</div>
-                        <div style={{ fontWeight: '800', fontSize: '15px' }}>{client.prenom} {client.nom}</div>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                        {client.cin && <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ background: '#EFF4FB', padding: '1px 7px', borderRadius: '4px', color: NAVY, fontWeight: '700', fontSize: '11px' }}>CIN</span><span style={{ fontWeight: '700', color: '#1A2535', fontSize: '13px' }}>{client.cin}</span></div>}
-                        {client.telephone && <div style={{ fontSize: '12.5px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '5px' }}><Phone size={11}/> {client.telephone}</div>}
-                        {client.permis_number && <div style={{ fontSize: '12.5px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '5px' }}><CreditCard size={11}/> Permis: <strong>{client.permis_number}</strong></div>}
-                        {client.email && <div style={{ fontSize: '12px', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: '5px' }}><Mail size={11}/> {client.email}</div>}
-                      </div>
-                    </>
-                  ) : <span style={{ color: '#94A3B8', fontSize: '13px' }}>—</span>}
+                  {client ? (<>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '10px' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#EFF4FB', color: NAVY, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '12px', flexShrink: 0 }}>{client.prenom?.charAt(0)}{client.nom?.charAt(0)}</div>
+                      <div style={{ fontWeight: '800', fontSize: '15px' }}>{client.prenom} {client.nom}</div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      {client.cin && <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><span style={{ background: '#EFF4FB', padding: '1px 7px', borderRadius: '4px', color: NAVY, fontWeight: '700', fontSize: '11px' }}>CIN</span><span style={{ fontWeight: '700', color: '#1A2535', fontSize: '13px' }}>{client.cin}</span></div>}
+                      {client.telephone && <div style={{ fontSize: '12.5px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '5px' }}><Phone size={11}/> {client.telephone}</div>}
+                      {client.permis_number && <div style={{ fontSize: '12.5px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '5px' }}><CreditCard size={11}/> Permis: <strong>{client.permis_number}</strong></div>}
+                      {client.email && <div style={{ fontSize: '12px', color: '#94A3B8', display: 'flex', alignItems: 'center', gap: '5px' }}><Mail size={11}/> {client.email}</div>}
+                    </div>
+                  </>) : <span style={{ color: '#94A3B8', fontSize: '13px' }}>—</span>}
                 </div>
-
-                {/* Véhicule */}
                 <div style={{ padding: '16px 20px', borderRight: '1px solid #F0F2F5' }}>
                   <div style={{ fontSize: '10.5px', fontWeight: '800', color: GREEN, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}><Car size={12}/> Véhicule</div>
-                  {vehicle ? (
-                    <>
-                      <div style={{ borderRadius: '8px', overflow: 'hidden', height: '70px', marginBottom: '8px' }}>
-                        <img src={getCarPhoto(vehicle)} alt={vehicle.marque} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.src = CAR_PHOTOS.default; }} />
+                  {vehicle ? (<>
+                    <div style={{ borderRadius: '8px', overflow: 'hidden', height: '70px', marginBottom: '8px' }}>
+                      <img src={getCarPhoto(vehicle)} alt={vehicle.marque} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={e => { e.target.src = CAR_PHOTOS.default; }} />
+                    </div>
+                    <div style={{ fontWeight: '800', fontSize: '14px', marginBottom: '6px' }}>{vehicle.marque} {vehicle.modele}</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <span style={{ background: '#EFF4FB', padding: '1px 7px', borderRadius: '4px', color: NAVY, fontWeight: '700', fontSize: '11px' }}>{vehicle.immatriculation}</span>
+                        {vehicle.couleur && <span style={{ fontSize: '12px', color: '#64748B' }}>{vehicle.couleur}</span>}
                       </div>
-                      <div style={{ fontWeight: '800', fontSize: '14px', marginBottom: '6px' }}>{vehicle.marque} {vehicle.modele}</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <span style={{ background: '#EFF4FB', padding: '1px 7px', borderRadius: '4px', color: NAVY, fontWeight: '700', fontSize: '11px' }}>{vehicle.immatriculation}</span>
-                          {vehicle.couleur && <span style={{ fontSize: '12px', color: '#64748B' }}>{vehicle.couleur}</span>}
-                        </div>
-                        <div style={{ fontSize: '13px', color: GREEN, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}><Banknote size={12}/> {vehicle.prix_journalier} DT/jour</div>
-                        <div style={{ fontSize: '12px', color: PURPLE, fontWeight: '600' }}>{days}j × {vehicle.prix_journalier} = {(parseFloat(vehicle.prix_journalier) * days).toFixed(2)} DT</div>
-                      </div>
-                    </>
-                  ) : <span style={{ color: '#94A3B8', fontSize: '13px' }}>—</span>}
+                      <div style={{ fontSize: '13px', color: GREEN, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}><Banknote size={12}/> {vehicle.prix_journalier} DT/jour</div>
+                      <div style={{ fontSize: '12px', color: PURPLE, fontWeight: '600' }}>{days}j × {vehicle.prix_journalier} = {(parseFloat(vehicle.prix_journalier) * days).toFixed(2)} DT</div>
+                    </div>
+                  </>) : <span style={{ color: '#94A3B8', fontSize: '13px' }}>—</span>}
                 </div>
-
-                {/* Finances */}
                 <div style={{ padding: '16px 20px' }}>
                   <div style={{ fontSize: '10.5px', fontWeight: '800', color: AMBER, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}><Banknote size={12}/> Situation Financière</div>
                   <PaymentBar solde={solde} reservation={r} />
                 </div>
               </div>
-
               {(r.notes || r.accident_description || r.caution) && (
                 <div style={{ padding: '10px 20px', background: '#F8FAFC', borderTop: '1px solid #F0F2F5', display: 'flex', gap: '16px', fontSize: '12.5px', flexWrap: 'wrap' }}>
                   {r.caution && <span style={{ color: PURPLE, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}><Banknote size={12}/> Caution: {r.caution} DT</span>}
@@ -660,7 +597,14 @@ const ReservationsList = () => {
       )}
 
       {accidentModal && <AccidentModal reservation={accidentModal.reservation} client={accidentModal.client} vehicle={accidentModal.vehicle} vehicles={vehicles} onClose={() => setAccidentModal(null)} onConfirm={handleConfirmReplacement} />}
-      {retourModal && <RetourCheckModal reservation={retourModal.reservation} client={retourModal.client} vehicle={retourModal.vehicle} onClose={() => setRetourModal(null)} onConfirm={handleRetourConfirm} />}
+
+      {retourModal && <RetourCheckModal
+        reservation={retourModal.reservation}
+        client={retourModal.client}
+        vehicle={retourModal.vehicle}
+        onClose={() => setRetourModal(null)}
+        onConfirm={handleRetourConfirm}
+      />}
 
       <style>{`
         @keyframes pulse { 0%,100%{box-shadow:0 3px 10px rgba(124,58,237,0.3)} 50%{box-shadow:0 3px 20px rgba(124,58,237,0.6)} }
