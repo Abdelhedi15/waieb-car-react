@@ -6,7 +6,7 @@ import {
 import {
   LayoutDashboard, Car, Tag, Users, CalendarCheck,
   Banknote, AlertTriangle, ChevronDown, ChevronRight,
-  RotateCcw, UserCheck, X, ClipboardList,
+  RotateCcw, UserCheck, X, ClipboardList, ClipboardCheck, Clock, TrendingUp,
   Shield, Activity,
 } from 'lucide-react';
 import api from '../api/axios';
@@ -127,7 +127,7 @@ export default function Dashboard() {
     {v:'occupation',  label:'Occupation véhicules',    icon:<Car size={14}/>,           desc:'Nombre de réservations par véhicule'},
     {v:'fidelite',    label:'Fidélité clients',        icon:<UserCheck size={14}/>,     desc:'Réservations par client'},
     {v:'accidents',   label:'Dommages par mois',       icon:<AlertTriangle size={14}/>, desc:'Accidents et dommages déclarés'},
-    {v:'inspections', label:'Inspections de retour',   icon:<ClipboardList size={14}/>, desc:'Inspections faites ✅ vs non faites ⏳ par mois'},
+    {v:'inspections', label:'Inspections de retour',   icon:<ClipboardCheck size={14}/>, desc:'Inspections faites vs non faites par mois'},
     {v:'vendre',      label:'Véhicules à vendre',      icon:<Tag size={14}/>,           desc:'Véhicules avec statut à vendre — âge du parc'},
     {v:'annulations', label:'Annulations clients',     icon:<X size={14}/>,             desc:'Réservations annulées par client'},
     {v:'remplacements',label:'Remplacements',          icon:<RotateCcw size={14}/>,     desc:'Remplacements suite à incident'},
@@ -189,30 +189,40 @@ export default function Dashboard() {
         </ResponsiveContainer>
       );
       // ✅ Inspections de retour — faites vs non faites par mois
-      case 'inspections': return (
-        <div>
-          <div style={{display:'flex',gap:'16px',marginBottom:'12px',padding:'0 4px'}}>
-            {[
-              {label:'Total inspectées',value:reservations.filter(r=>r.inspection_retour_faite).length,color:GREEN,bg:'#DCFCE7'},
-              {label:'En attente',value:aInspecter.length,color:PURPLE,bg:'#F3EEFF'},
-              {label:'Taux inspection',value:`${reservations.filter(r=>r.statut==='terminée').length>0?Math.round(reservations.filter(r=>r.inspection_retour_faite).length/Math.max(reservations.filter(r=>['terminée','confirmée'].includes(r.statut)&&new Date(r.date_fin)<=today).length,1)*100):0}%`,color:NAVY,bg:'#EFF4FB'},
-            ].map(s=>(
-              <div key={s.label} style={{flex:1,background:s.bg,borderRadius:'10px',padding:'10px 14px',textAlign:'center'}}>
-                <div style={{fontWeight:'800',fontSize:'20px',color:s.color}}>{s.value}</div>
-                <div style={{fontSize:'11px',color:'#64748B',fontWeight:'600'}}>{s.label}</div>
-              </div>
-            ))}
+      case 'inspections': {
+        const totalInsp = reservations.filter(r=>r.inspection_retour_faite).length;
+        const totalTerminees = reservations.filter(r=>['terminée','confirmée'].includes(r.statut)&&new Date(r.date_fin)<=today).length;
+        const tauxInsp = totalTerminees > 0 ? Math.round(totalInsp/totalTerminees*100) : 0;
+        return (
+          <div>
+            <div style={{display:'flex',gap:'12px',marginBottom:'16px',padding:'0 4px'}}>
+              {[
+                {icon:<ClipboardCheck size={20}/>, label:'Total inspectées', value:totalInsp,     color:GREEN,  bg:'#DCFCE7', border:'#86EFAC'},
+                {icon:<Clock size={20}/>,          label:'En attente',       value:aInspecter.length, color:PURPLE, bg:'#F3EEFF', border:'#C4B5FD'},
+                {icon:<TrendingUp size={20}/>,     label:'Taux inspection',  value:`${tauxInsp}%`,color:NAVY,   bg:'#EFF4FB', border:'#BFDBFE'},
+              ].map(s=>(
+                <div key={s.label} style={{flex:1,background:s.bg,borderRadius:'12px',padding:'14px 16px',display:'flex',alignItems:'center',gap:'12px',border:`1.5px solid ${s.border}`}}>
+                  <div style={{width:'40px',height:'40px',borderRadius:'10px',background:'white',display:'flex',alignItems:'center',justifyContent:'center',color:s.color,flexShrink:0,boxShadow:'0 2px 8px rgba(0,0,0,0.08)'}}>
+                    {s.icon}
+                  </div>
+                  <div>
+                    <div style={{fontWeight:'800',fontSize:'22px',color:s.color,lineHeight:1}}>{s.value}</div>
+                    <div style={{fontSize:'11px',color:'#64748B',fontWeight:'600',marginTop:'3px'}}>{s.label}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={monthlyData} margin={{top:10,right:20,left:0,bottom:0}}>
+                <CartesianGrid {...G}/><XAxis dataKey="mois" tick={T}/><YAxis tick={T} allowDecimals={false}/>
+                <Tooltip contentStyle={C}/><Legend wrapperStyle={{fontSize:'12px'}}/>
+                <Bar dataKey="inspections_faites"  fill={GREEN}  radius={[5,5,0,0]} name="Inspectées"/>
+                <Bar dataKey="inspections_attente" fill={PURPLE} radius={[5,5,0,0]} name="Non inspectées"/>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={monthlyData} margin={{top:10,right:20,left:0,bottom:0}}>
-              <CartesianGrid {...G}/><XAxis dataKey="mois" tick={T}/><YAxis tick={T} allowDecimals={false}/>
-              <Tooltip contentStyle={C}/><Legend wrapperStyle={{fontSize:'12px'}}/>
-              <Bar dataKey="inspections_faites"  fill={GREEN}  radius={[5,5,0,0]} name="Inspectées ✅"/>
-              <Bar dataKey="inspections_attente" fill={PURPLE} radius={[5,5,0,0]} name="Non inspectées ⏳"/>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      );
+        );
+      }
       // ✅ Véhicules à vendre — statut a_vendre avec âge
       case 'vendre': return vendreData.length === 0 ? (
         <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'320px',flexDirection:'column',gap:'12px',color:'#94A3B8'}}>
