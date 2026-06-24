@@ -47,20 +47,6 @@ const statutConfig = {
 };
 
 // ✅ Détection doublons
-const detectDoublons = (reservations) => {
-  const actives = reservations.filter(r => ['confirmée','en_attente'].includes(r.statut));
-  const ids = new Set();
-  for (let i = 0; i < actives.length; i++) {
-    for (let j = i + 1; j < actives.length; j++) {
-      const a = actives[i], b = actives[j];
-      if (a.vehicle !== b.vehicle) continue;
-      if (new Date(a.date_debut) <= new Date(b.date_fin) && new Date(b.date_debut) <= new Date(a.date_fin)) {
-        ids.add(a.id); ids.add(b.id);
-      }
-    }
-  }
-  return ids;
-};
 
 const PaymentBar = ({ solde, reservation }) => {
   if (!solde) return (
@@ -430,7 +416,6 @@ const ReservationsList = () => {
   const getClient   = id => clients.find(c => c.id === id);
   const getVehicle  = id => vehicles.find(v => v.id === id);
   const getContract = id => contracts.find(c => c.reservation === id);
-  const doublonIds  = detectDoublons(reservations);
 
   // ✅ FIX SORT — urgent → actif → ID décroissant
   const filtered = reservations.filter(r => {
@@ -445,7 +430,6 @@ const ReservationsList = () => {
     const urgentA = finA.getTime() === today.getTime() && a.statut === 'confirmée' && !a.inspection_retour_faite;
     const urgentB = finB.getTime() === today.getTime() && b.statut === 'confirmée' && !b.inspection_retour_faite;
     if (urgentA && !urgentB) return -1; if (!urgentA && urgentB) return 1;
-    const doubA = doublonIds.has(a.id), doubB = doublonIds.has(b.id);
     if (doubA && !doubB) return -1; if (!doubA && doubB) return 1;
     const actA = debutA <= today && finA >= today, actB = debutB <= today && finB >= today;
     if (actA && !actB) return -1; if (!actA && actB) return 1;
@@ -507,16 +491,7 @@ const ReservationsList = () => {
         ))}
       </div>
 
-      {/* Doublon alert */}
-      {doublonIds.size > 0 && (
-        <div style={{ background: '#FEF9C3', border: `2px solid ${AMBER}`, borderRadius: '12px', padding: '12px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <AlertTriangle size={18} color="#D97706"/>
-          <div>
-            <span style={{ fontWeight: '800', fontSize: '13px', color: '#1A2535' }}>⚠️ {doublonIds.size} réservation(s) en conflit détectée(s)</span>
-            <span style={{ marginLeft: '8px', fontSize: '12px', color: AMBER }}>Même véhicule réservé sur des dates qui se chevauchent — vérifiez et annulez les doublons.</span>
-          </div>
-        </div>
-      )}
+
 
       {/* Inspection banner */}
       <RetourAlertBanner reservations={aInspecter} clients={clients} vehicles={vehicles}
@@ -559,7 +534,6 @@ const ReservationsList = () => {
           const days = Math.max(1, Math.round((new Date(r.date_fin) - new Date(r.date_debut)) / 86400000));
           const statut = statutConfig[r.statut] || { bg: '#F1F5F9', color: '#64748B', label: r.statut, icon: null };
           const isSolde = solde && solde.montant_restant <= 0;
-          const isDoublon = doublonIds.has(r.id);
           const today = new Date(); today.setHours(0,0,0,0);
           const dateFin = new Date(r.date_fin); dateFin.setHours(0,0,0,0);
           const isFinAujourdhui = dateFin.getTime() === today.getTime();
@@ -570,15 +544,15 @@ const ReservationsList = () => {
           return (
             <div key={r.id} style={{
               background: 'white', borderRadius: '14px', overflow: 'hidden',
-              border: `1.5px solid ${isDoublon ? AMBER : needsRetour ? PURPLE : isSolde ? '#86EFAC' : r.a_accident ? '#FECACA' : '#DDE3ED'}`,
-              boxShadow: isDoublon ? `0 0 0 3px ${AMBER}33` : needsRetour ? '0 0 0 3px rgba(124,58,237,0.12)' : '0 1px 6px rgba(0,0,0,0.05)',
+              border: `1.5px solid ${needsRetour ? PURPLE : isSolde ? '#86EFAC' : r.a_accident ? '#FECACA' : '#DDE3ED'}`,
+              boxShadow: needsRetour ? '0 0 0 3px rgba(124,58,237,0.12)' : '0 1px 6px rgba(0,0,0,0.05)',
             }}>
-              <div style={{ padding: '12px 20px', borderBottom: '1px solid #F0F2F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', background: isDoublon ? '#FFFDE7' : needsRetour ? '#FAF5FF' : isSolde ? '#F0FFF4' : r.statut === 'confirmée' ? '#EFF4FB' : r.statut === 'annulée' ? '#FFF5F5' : '#FFFBEB' }}>
+              <div style={{ padding: '12px 20px', borderBottom: '1px solid #F0F2F5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', background: needsRetour ? '#FAF5FF' : isSolde ? '#F0FFF4' : r.statut === 'confirmée' ? '#EFF4FB' : r.statut === 'annulée' ? '#FFF5F5' : '#FFFBEB' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <strong style={{ color: NAVY, fontSize: '15px' }}>Rés. #{r.id}</strong>
                   {contract && <span style={{ color: PURPLE, fontWeight: '700', fontSize: '12.5px', background: '#F3EEFF', padding: '2px 8px', borderRadius: '6px' }}>{contract.numero}</span>}
                   <span style={{ background: statut.bg, color: statut.color, padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>{statut.icon} {statut.label}</span>
-                  {isDoublon && <span style={{ background: '#FEF9C3', color: AMBER, padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={12}/> Doublon détecté</span>}
+
                   {r.a_accident && <span style={{ background: '#FEE2E2', color: RED, padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={12}/> Accident</span>}
                   {r.vehicule_remplace && <span style={{ background: '#DCFCE7', color: GREEN, padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12}/> Remplacé</span>}
                   {isSolde && <span style={{ background: '#DCFCE7', color: GREEN, padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12}/> Soldé</span>}
@@ -591,23 +565,7 @@ const ReservationsList = () => {
                       <ClipboardList size={14}/> 🔴 Inspecter maintenant
                     </button>
                   )}
-                  {/* ✅ FIX — Annuler doublon avec stopPropagation */}
-                  {isDoublon && (
-                    <button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        if (!window.confirm(`Annuler la réservation #${r.id} (doublon) ?`)) return;
-                        try {
-                          await api.patch(`/reservations/${r.id}/`, { statut: 'annulée' });
-                          await fetchAll();
-                        } catch (err) {
-                          alert('Erreur annulation: ' + JSON.stringify(err.response?.data || err.message));
-                        }
-                      }}
-                      style={{ padding: '7px 14px', background: '#FEE2E2', color: RED, border: `1.5px solid ${RED}`, borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <XCircle size={13}/> Annuler doublon
-                    </button>
-                  )}
+
                   {hasAccidentNoReplacement && (
                     <button onClick={() => setAccidentModal({ reservation: r, client, vehicle })}
                       style={{ padding: '6px 12px', background: RED, color: 'white', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
