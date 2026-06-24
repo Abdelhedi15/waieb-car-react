@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Car, CheckCircle, XCircle, AlertTriangle,
   Save, FileText, Calendar, ChevronRight,
-  Droplets, Sparkles, FileCheck, Shield, Wrench,
-  Key, Radio, Eye, Minus,
+  Wind, Paintbrush2, FileCheck2, ShieldCheck, Settings,
+  KeyRound, Music2, Eye, Minus, Trash2,
 } from 'lucide-react';
 import api from '../api/axios';
 
@@ -124,13 +124,13 @@ const VehicleState = () => {
 
   // ✅ Checklist items avec Lucide icons
   const CHECKLIST = [
-    { field: 'propre_interieur',   label: 'Propreté intérieure',      icon: <Droplets size={16}/>     },
-    { field: 'propre_exterieur',   label: 'Propreté extérieure',      icon: <Sparkles size={16}/>     },
-    { field: 'papier_carte_grise', label: 'Carte grise',              icon: <FileCheck size={16}/>    },
-    { field: 'papier_assurance',   label: 'Assurance',                icon: <Shield size={16}/>       },
-    { field: 'route_secours',      label: 'Roue de secours',          icon: <Wrench size={16}/>       },
-    { field: 'cles',               label: 'Clés',                     icon: <Key size={16}/>          },
-    { field: 'autoradio',          label: 'Auto-radio',               icon: <Radio size={16}/>        },
+    { field: 'propre_interieur',   label: 'Propreté intérieure',  icon: <Wind size={16}/>          },
+    { field: 'propre_exterieur',   label: 'Propreté extérieure',  icon: <Paintbrush2 size={16}/>   },
+    { field: 'papier_carte_grise', label: 'Carte grise',          icon: <FileCheck2 size={16}/>    },
+    { field: 'papier_assurance',   label: 'Assurance',            icon: <ShieldCheck size={16}/>   },
+    { field: 'route_secours',      label: 'Roue de secours',      icon: <Settings size={16}/>      },
+    { field: 'cles',               label: 'Clés',                 icon: <KeyRound size={16}/>      },
+    { field: 'autoradio',          label: 'Auto-radio',           icon: <Music2 size={16}/>        },
   ];
 
   const statutStyle = (s) => {
@@ -285,7 +285,7 @@ const VehicleState = () => {
                   {(currentEtat.eraflures.length > 0 || currentEtat.bosses.length > 0) && (
                     <button onClick={() => setCurrentEtat(prev => ({ ...prev, eraflures: [], bosses: [] }))}
                       style={{ marginTop: '8px', padding: '6px 14px', background: '#FEE2E2', border: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '12px', color: RED, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <XCircle size={13}/> Tout effacer
+                      <Trash2 size={13}/> Tout effacer
                     </button>
                   )}
                 </div>

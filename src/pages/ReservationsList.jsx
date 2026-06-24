@@ -430,7 +430,7 @@ const ReservationsList = () => {
     const urgentA = finA.getTime() === today.getTime() && a.statut === 'confirmée' && !a.inspection_retour_faite;
     const urgentB = finB.getTime() === today.getTime() && b.statut === 'confirmée' && !b.inspection_retour_faite;
     if (urgentA && !urgentB) return -1; if (!urgentA && urgentB) return 1;
-    if (doubA && !doubB) return -1; if (!doubA && doubB) return 1;
+
     const actA = debutA <= today && finA >= today, actB = debutB <= today && finB >= today;
     if (actA && !actB) return -1; if (!actA && actB) return 1;
     return b.id - a.id;
