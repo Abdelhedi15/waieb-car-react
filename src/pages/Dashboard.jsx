@@ -60,12 +60,14 @@ export default function Dashboard() {
   // ✅ FIX 1 — "À vendre" = statut explicitement a_vendre (pas calcul d'âge)
   const aVendre = vehicles.filter(v => v.statut === 'a_vendre');
 
-  // ✅ FIX 2 — Inspection retour : confirmée + date_fin <= aujourd'hui + pas encore inspectée
-  const aInspecter = reservations.filter(r => {
-    if (r.statut !== 'confirmée' || r.inspection_retour_faite) return false;
-    const f = new Date(r.date_fin); f.setHours(0,0,0,0);
-    return f.getTime() <= today.getTime(); // ← <= au lieu de ===
-  });
+  const cutoff = new Date('2026-06-01'); // ← date intro de la feature inspection
+cutoff.setHours(0,0,0,0);
+
+const aInspecter = reservations.filter(r => {
+  if (r.statut !== 'confirmée' || r.inspection_retour_faite) return false;
+  const f = new Date(r.date_fin); f.setHours(0,0,0,0);
+  return f.getTime() <= today.getTime() && f.getTime() >= cutoff.getTime();
+});
 
   const totalRevenus   = payments.filter(p=>p.statut==='payé').reduce((s,p)=>s+parseFloat(p.montant),0);
   const totalAccidents = reservations.filter(r=>hasDamage(r)).length;
