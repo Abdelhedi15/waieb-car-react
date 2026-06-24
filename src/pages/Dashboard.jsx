@@ -235,86 +235,71 @@ export default function Dashboard() {
     </div>
   );
 
-  // ── STAT CARDS CONFIG — chaque card a son identité visuelle
+  // ── STAT CARDS — Option B: fond teinté léger + icône navy carré
   const statCards = [
     {
       label:'Véhicules actifs',
       value: activeVeh.length,
-      sub: `${vehicles.length} total parc`,
-      icon: <Car size={26}/>,
-      color: NAVY,
-      bg: 'linear-gradient(135deg, #1B3A6B 0%, #2D5A9E 100%)',
-      textColor: 'white',
-      alert: false,
+      sub: `${vehicles.length} total`,
+      icon: <Car size={18}/>,
+      iconBg: NAVY, cardBg: '#EFF4FB', cardBorder: '#BFDBFE',
+      valueColor: NAVY,
     },
     {
       label:'À renouveler',
       value: aVendre.length,
       sub: 'Dépassé 3.5 ans',
-      icon: <Tag size={26}/>,
-      color: aVendre.length > 0 ? RED : GREEN,
-      bg: aVendre.length > 0
-        ? 'linear-gradient(135deg, #DC2626 0%, #EF4444 100%)'
-        : 'linear-gradient(135deg, #16A34A 0%, #22C55E 100%)',
-      textColor: 'white',
-      alert: aVendre.length > 0,
-      alertLabel: aVendre.length > 0 ? '⚠' : '✓',
+      icon: <Tag size={18}/>,
+      iconBg: aVendre.length > 0 ? RED : GREEN,
+      cardBg: aVendre.length > 0 ? '#FFF5F5' : '#F0FFF4',
+      cardBorder: aVendre.length > 0 ? '#FECACA' : '#86EFAC',
+      valueColor: aVendre.length > 0 ? RED : GREEN,
     },
     {
       label:'Clients',
       value: clients.length,
       sub: 'Enregistrés',
-      icon: <Users size={26}/>,
-      color: PURPLE,
-      bg: 'linear-gradient(135deg, #7C3AED 0%, #9F67FF 100%)',
-      textColor: 'white',
-      alert: false,
+      icon: <Users size={18}/>,
+      iconBg: NAVY, cardBg: '#EFF4FB', cardBorder: '#BFDBFE',
+      valueColor: NAVY,
     },
     {
       label:'Réservations',
       value: reservations.length,
       sub: `${nbConfirmees} confirmées`,
-      icon: <CalendarCheck size={26}/>,
-      color: '#0891B2',
-      bg: 'linear-gradient(135deg, #0891B2 0%, #06B6D4 100%)',
-      textColor: 'white',
-      alert: false,
+      icon: <CalendarCheck size={18}/>,
+      iconBg: NAVY, cardBg: '#EFF4FB', cardBorder: '#BFDBFE',
+      valueColor: NAVY,
     },
     {
       label:'Revenus encaissés',
       value: `${totalRevenus.toFixed(0)} DT`,
       sub: 'Paiements reçus',
-      icon: <Banknote size={26}/>,
-      color: GREEN,
-      bg: 'linear-gradient(135deg, #16A34A 0%, #22C55E 100%)',
-      textColor: 'white',
-      alert: false,
+      icon: <Banknote size={18}/>,
+      iconBg: GREEN, cardBg: '#F0FFF4', cardBorder: '#86EFAC',
+      valueColor: GREEN,
     },
     {
       label:'Dommages déclarés',
       value: totalAccidents,
-      sub: totalAccidents > 0 ? 'À surveiller' : 'Aucun dommage',
-      icon: <Shield size={26}/>,
-      color: totalAccidents > 0 ? RED : GREEN,
-      bg: totalAccidents > 0
-        ? 'linear-gradient(135deg, #B91C1C 0%, #DC2626 100%)'
-        : 'linear-gradient(135deg, #15803D 0%, #16A34A 100%)',
-      textColor: 'white',
-      alert: totalAccidents > 0,
+      sub: totalAccidents > 0 ? 'À surveiller' : 'Aucun',
+      icon: <Shield size={18}/>,
+      iconBg: totalAccidents > 0 ? RED : GREEN,
+      cardBg: totalAccidents > 0 ? '#FFF5F5' : '#F0FFF4',
+      cardBorder: totalAccidents > 0 ? '#FECACA' : '#86EFAC',
+      valueColor: totalAccidents > 0 ? RED : GREEN,
     },
     {
       label:'À inspecter',
       value: aInspecter.length,
       sub: "Aujourd'hui",
-      icon: <ClipboardList size={26}/>,
-      color: aInspecter.length > 0 ? '#7C3AED' : GREEN,
-      bg: aInspecter.length > 0
-        ? 'linear-gradient(135deg, #5B21B6 0%, #7C3AED 100%)'
-        : 'linear-gradient(135deg, #15803D 0%, #16A34A 100%)',
-      textColor: 'white',
-      alert: aInspecter.length > 0,
-      alertLabel: aInspecter.length > 0 ? 'URGENT' : null,
-      clickable: aInspecter.length > 0,
+      icon: <ClipboardList size={18}/>,
+      iconBg: aInspecter.length > 0 ? PURPLE : GREEN,
+      cardBg: aInspecter.length > 0 ? '#FAF5FF' : '#F0FFF4',
+      cardBorder: aInspecter.length > 0 ? '#7C3AED' : '#86EFAC',
+      cardBorderWidth: aInspecter.length > 0 ? '1.5px' : '0.5px',
+      valueColor: aInspecter.length > 0 ? PURPLE : GREEN,
+      urgent: aInspecter.length > 0,
     },
   ];
 
@@ -330,54 +315,46 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── STAT CARDS — design distinctif par carte */}
+      {/* ── STAT CARDS — Option B */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'12px',marginBottom:'28px'}}>
         {statCards.map((s,i)=>(
           <div key={i}
-            onClick={() => s.clickable && setChart('inspections')}
             style={{
-              background: s.bg,
-              borderRadius:'16px',
-              padding:'18px 14px',
+              background: s.cardBg,
+              border: `${s.cardBorderWidth||'0.5px'} solid ${s.cardBorder}`,
+              borderRadius:'12px',
+              padding:'16px 12px',
               position:'relative',
-              cursor: s.clickable ? 'pointer' : 'default',
-              boxShadow: s.alert
-                ? `0 8px 24px ${s.color}40`
-                : '0 4px 12px rgba(0,0,0,0.08)',
-              transition:'transform 0.15s, box-shadow 0.15s',
-              overflow:'hidden',
+              cursor: s.urgent ? 'pointer' : 'default',
+              transition:'transform 0.15s',
             }}
-            onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-3px)';e.currentTarget.style.boxShadow=`0 12px 28px ${s.color}50`;}}
-            onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow=s.alert?`0 8px 24px ${s.color}40`:'0 4px 12px rgba(0,0,0,0.08)';}}
+            onMouseEnter={e=>e.currentTarget.style.transform='translateY(-2px)'}
+            onMouseLeave={e=>e.currentTarget.style.transform='translateY(0)'}
           >
-            {/* Background decoration */}
-            <div style={{position:'absolute',top:'-15px',right:'-15px',width:'70px',height:'70px',borderRadius:'50%',background:'rgba(255,255,255,0.1)'}}/>
-            <div style={{position:'absolute',bottom:'-20px',left:'-10px',width:'50px',height:'50px',borderRadius:'50%',background:'rgba(255,255,255,0.07)'}}/>
-
-            {/* Alert badge */}
-            {s.alertLabel && (
-              <div style={{position:'absolute',top:'10px',right:'10px',background:'rgba(255,255,255,0.25)',color:'white',borderRadius:'6px',fontSize:'9.5px',padding:'2px 7px',fontWeight:'900',letterSpacing:'0.5px'}}>
-                {s.alertLabel}
+            {/* URGENT badge */}
+            {s.urgent && (
+              <div style={{position:'absolute',top:'-1px',left:'50%',transform:'translateX(-50%)',background:PURPLE,color:'white',fontSize:'8.5px',padding:'1px 8px',borderRadius:'0 0 6px 6px',fontWeight:'700',letterSpacing:'0.4px',whiteSpace:'nowrap'}}>
+                URGENT
               </div>
             )}
 
-            {/* Icon */}
-            <div style={{color:'rgba(255,255,255,0.85)',marginBottom:'12px',display:'flex'}}>
+            {/* Icon square */}
+            <div style={{width:'32px',height:'32px',background:s.iconBg,borderRadius:'8px',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:'10px',marginTop:s.urgent?'8px':'0',color:'white',flexShrink:0}}>
               {s.icon}
             </div>
 
             {/* Value */}
-            <div style={{fontSize:'28px',fontWeight:'900',color:'white',lineHeight:1,marginBottom:'4px',letterSpacing:'-0.5px'}}>
+            <div style={{fontSize: String(s.value).length > 7 ? '15px' : '22px', fontWeight:'700',color:s.valueColor,lineHeight:1,marginBottom:'4px'}}>
               {s.value}
             </div>
 
             {/* Label */}
-            <div style={{fontSize:'12px',fontWeight:'700',color:'rgba(255,255,255,0.9)',marginBottom:'2px'}}>
+            <div style={{fontSize:'11px',fontWeight:'600',color:'#475569',marginBottom:'2px'}}>
               {s.label}
             </div>
 
             {/* Sub */}
-            <div style={{fontSize:'10.5px',color:'rgba(255,255,255,0.65)',fontWeight:'500'}}>
+            <div style={{fontSize:'10px',color:'#94A3B8'}}>
               {s.sub}
             </div>
           </div>
