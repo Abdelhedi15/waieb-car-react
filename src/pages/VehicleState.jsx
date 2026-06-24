@@ -3,13 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Car, CheckCircle, XCircle, AlertTriangle,
   Save, FileText, Calendar, ChevronRight,
+  Droplets, Sparkles, FileCheck, Shield, Wrench,
+  Key, Radio, Eye, Minus,
 } from 'lucide-react';
 import api from '../api/axios';
 
 const NAVY  = '#1B3A6B';
 const GREEN = '#16A34A';
 const RED   = '#DC2626';
-const AMBER = '#E8A020';
+const AMBER = '#D97706';
 
 const VehicleState = () => {
   const { vehicleId } = useParams();
@@ -118,39 +120,25 @@ const VehicleState = () => {
 
   const currentEtat = activeTab === 'avant' ? etatAvant : etatApres;
   const setCurrentEtat = activeTab === 'avant' ? setEtatAvant : setEtatApres;
-
   const problems = ['propre_interieur','propre_exterieur','papier_carte_grise','papier_assurance','route_secours','cles','autoradio'].filter(k => !currentEtat[k]).length;
 
-  const CheckItem = ({ label, field, icon }) => {
-    const val = currentEtat[field];
-    return (
-      <div onClick={() => setCurrentEtat(prev => ({ ...prev, [field]: !prev[field] }))}
-        style={{
-          display: 'flex', alignItems: 'center', gap: '12px',
-          padding: '11px 14px', borderRadius: '10px', cursor: 'pointer',
-          background: val ? '#F0FFF4' : '#FFF5F5',
-          border: `1.5px solid ${val ? '#86EFAC' : '#FECACA'}`,
-          marginBottom: '8px', transition: 'all 0.15s', userSelect: 'none',
-        }}>
-        <span style={{ fontSize: '18px' }}>{icon}</span>
-        <span style={{ flex: 1, fontWeight: '600', fontSize: '13.5px', color: '#1A2535' }}>{label}</span>
-        <span style={{
-          padding: '3px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700',
-          background: val ? GREEN : RED, color: 'white',
-          display: 'flex', alignItems: 'center', gap: '4px',
-        }}>
-          {val ? <><CheckCircle size={11} /> OK</> : <><XCircle size={11} /> Manquant</>}
-        </span>
-      </div>
-    );
-  };
+  // ✅ Checklist items avec Lucide icons
+  const CHECKLIST = [
+    { field: 'propre_interieur',   label: 'Propreté intérieure',      icon: <Droplets size={16}/>     },
+    { field: 'propre_exterieur',   label: 'Propreté extérieure',      icon: <Sparkles size={16}/>     },
+    { field: 'papier_carte_grise', label: 'Carte grise',              icon: <FileCheck size={16}/>    },
+    { field: 'papier_assurance',   label: 'Assurance',                icon: <Shield size={16}/>       },
+    { field: 'route_secours',      label: 'Roue de secours',          icon: <Wrench size={16}/>       },
+    { field: 'cles',               label: 'Clés',                     icon: <Key size={16}/>          },
+    { field: 'autoradio',          label: 'Auto-radio',               icon: <Radio size={16}/>        },
+  ];
 
   const statutStyle = (s) => {
     const map = {
-      confirmée: { bg: '#DCFCE7', color: GREEN },
-      terminée:  { bg: '#DBEAFE', color: NAVY },
-      en_attente:{ bg: '#FEF9C3', color: '#92580A' },
-      annulée:   { bg: '#FEE2E2', color: RED },
+      confirmée:  { bg: '#DCFCE7', color: GREEN },
+      terminée:   { bg: '#DBEAFE', color: NAVY },
+      en_attente: { bg: '#FEF9C3', color: '#92580A' },
+      annulée:    { bg: '#FEE2E2', color: RED },
     };
     return map[s] || { bg: '#F1F5F9', color: '#64748B' };
   };
@@ -170,9 +158,7 @@ const VehicleState = () => {
           </h1>
           {vehicle && (
             <div style={{ fontSize: '13px', color: '#64748B', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ background: '#EFF4FB', color: NAVY, padding: '2px 8px', borderRadius: '6px', fontWeight: '700', fontSize: '12px' }}>
-                {vehicle.immatriculation}
-              </span>
+              <span style={{ background: '#EFF4FB', color: NAVY, padding: '2px 8px', borderRadius: '6px', fontWeight: '700', fontSize: '12px' }}>{vehicle.immatriculation}</span>
               <span>{vehicle.marque} {vehicle.modele} · {vehicle.annee}</span>
             </div>
           )}
@@ -180,7 +166,6 @@ const VehicleState = () => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '20px' }}>
-
         {/* Left — Reservations list */}
         <div className="card" style={{ padding: '16px', height: 'fit-content' }}>
           <h3 style={{ color: NAVY, marginBottom: '14px', fontSize: '14px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -198,16 +183,11 @@ const VehicleState = () => {
             const hasApres = res.etat_apres_eraflures || res.etat_apres_bosses;
             return (
               <div key={res.id} onClick={() => loadReservationState(res)}
-                style={{
-                  padding: '12px', borderRadius: '10px', cursor: 'pointer',
-                  marginBottom: '8px', transition: 'all 0.15s',
-                  background: isSelected ? '#EFF4FB' : '#F8FAFC',
-                  border: `2px solid ${isSelected ? NAVY : '#DDE3ED'}`,
-                }}>
+                style={{ padding: '12px', borderRadius: '10px', cursor: 'pointer', marginBottom: '8px', transition: 'all 0.15s', background: isSelected ? '#EFF4FB' : '#F8FAFC', border: `2px solid ${isSelected ? NAVY : '#DDE3ED'}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                   <strong style={{ fontSize: '14px', color: NAVY }}>Rés. #{res.id}</strong>
                   <div style={{ display: 'flex', gap: '4px' }}>
-                    {res.a_accident && <span title="Accident" style={{ fontSize: '13px' }}>⚠️</span>}
+                    {res.a_accident && <span style={{ background: '#FEE2E2', color: RED, padding: '1px 5px', borderRadius: '4px', fontSize: '10px', fontWeight: '700', display:'flex', alignItems:'center', gap:'2px' }}><AlertTriangle size={9}/> Acc</span>}
                     {hasAvant && <span style={{ fontSize: '10px', background: '#DCFCE7', color: GREEN, padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>AV✓</span>}
                     {hasApres && <span style={{ fontSize: '10px', background: '#F3EEFF', color: '#7C3AED', padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>AP✓</span>}
                   </div>
@@ -224,65 +204,46 @@ const VehicleState = () => {
           })}
         </div>
 
-        {/* Right — State form */}
+        {/* Right */}
         <div>
           {!selectedReservation ? (
             <div className="card" style={{ textAlign: 'center', padding: '80px 20px' }}>
               <Car size={64} color="#DDE3ED" style={{ margin: '0 auto 16px', display: 'block' }} />
-              <div style={{ fontSize: '17px', fontWeight: '700', color: '#1A2535', marginBottom: '8px' }}>
-                Sélectionnez une réservation
-              </div>
-              <div style={{ color: '#64748B', fontSize: '13px' }}>
-                Choisissez une réservation à gauche pour remplir l'état du véhicule
-              </div>
+              <div style={{ fontSize: '17px', fontWeight: '700', color: '#1A2535', marginBottom: '8px' }}>Sélectionnez une réservation</div>
+              <div style={{ color: '#64748B', fontSize: '13px' }}>Choisissez une réservation à gauche pour remplir l'état du véhicule</div>
             </div>
           ) : (
             <>
-              {/* Avant/Après tabs */}
+              {/* Tabs */}
               <div style={{ display: 'flex', marginBottom: '20px', borderRadius: '12px', overflow: 'hidden', border: '1.5px solid #DDE3ED' }}>
                 {[
-                  { id: 'avant', label: '🚗 État AVANT location', color: GREEN, bg: '#DCFCE7' },
-                  { id: 'apres', label: '🔄 État APRÈS retour',   color: RED,   bg: '#FEE2E2' },
+                  { id: 'avant', label: 'État AVANT location', color: GREEN, icon: <Eye size={15}/> },
+                  { id: 'apres', label: 'État APRÈS retour',   color: RED,   icon: <CheckCircle size={15}/> },
                 ].map(tab => (
                   <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                    style={{
-                      flex: 1, padding: '14px', border: 'none', cursor: 'pointer',
-                      fontWeight: '700', fontSize: '14px',
-                      background: activeTab === tab.id ? tab.color : '#F8FAFC',
-                      color: activeTab === tab.id ? 'white' : '#64748B',
-                      transition: 'all 0.15s',
-                    }}>
-                    {tab.label}
+                    style={{ flex: 1, padding: '14px', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: '14px', background: activeTab === tab.id ? tab.color : '#F8FAFC', color: activeTab === tab.id ? 'white' : '#64748B', transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                    {tab.icon} {tab.label}
                   </button>
                 ))}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-
                 {/* SVG diagram */}
                 <div className="card" style={{ padding: '16px' }}>
                   <h3 style={{ fontSize: '13px', fontWeight: '800', color: NAVY, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Car size={13} /> Schéma véhicule — Cliquez pour marquer
                   </h3>
-
                   <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
                     {[
-                      { mode: 'eraflure', label: '— Éraflure', color: AMBER },
-                      { mode: 'bosse',    label: '● Bosse',     color: RED   },
+                      { mode: 'eraflure', label: 'Éraflure', icon: <Minus size={14}/>, color: AMBER },
+                      { mode: 'bosse',    label: 'Bosse',    icon: <AlertTriangle size={14}/>, color: RED },
                     ].map(m => (
                       <button key={m.mode} onClick={() => setDrawMode(m.mode)}
-                        style={{
-                          flex: 1, padding: '8px', border: 'none', borderRadius: '8px', cursor: 'pointer',
-                          fontWeight: '700', fontSize: '13px',
-                          background: drawMode === m.mode ? m.color : '#F1F5F9',
-                          color: drawMode === m.mode ? 'white' : '#64748B',
-                          transition: 'all 0.15s',
-                        }}>
-                        {m.label}
+                        style={{ flex: 1, padding: '8px', border: `2px solid ${drawMode === m.mode ? m.color : '#DDE3ED'}`, borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '13px', background: drawMode === m.mode ? m.color : 'white', color: drawMode === m.mode ? 'white' : '#64748B', transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                        {m.icon} {m.label}
                       </button>
                     ))}
                   </div>
-
                   <div style={{ position: 'relative', cursor: 'crosshair' }}>
                     <svg ref={svgRef} viewBox="0 0 300 180" onClick={handleSvgClick}
                       style={{ width: '100%', border: '1.5px solid #DDE3ED', borderRadius: '10px', background: '#F8FAFC' }}>
@@ -314,89 +275,84 @@ const VehicleState = () => {
                       ))}
                     </svg>
                   </div>
-
                   <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '6px', textAlign: 'center' }}>
                     Cliquez pour ajouter • Cliquez sur un marqueur pour supprimer
                   </div>
-
                   <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
-                    <span style={{ color: AMBER, fontWeight: '700', fontSize: '12px' }}>— Éraflure ({currentEtat.eraflures.length})</span>
-                    <span style={{ color: RED,   fontWeight: '700', fontSize: '12px' }}>● Bosse ({currentEtat.bosses.length})</span>
+                    <span style={{ color: AMBER, fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}><Minus size={12}/> Éraflure ({currentEtat.eraflures.length})</span>
+                    <span style={{ color: RED, fontWeight: '700', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={12}/> Bosse ({currentEtat.bosses.length})</span>
                   </div>
-
                   {(currentEtat.eraflures.length > 0 || currentEtat.bosses.length > 0) && (
                     <button onClick={() => setCurrentEtat(prev => ({ ...prev, eraflures: [], bosses: [] }))}
-                      style={{ marginTop: '8px', padding: '6px 14px', background: '#FEE2E2', border: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '12px', color: RED, fontWeight: '600' }}>
-                      🗑️ Tout effacer
+                      style={{ marginTop: '8px', padding: '6px 14px', background: '#FEE2E2', border: 'none', borderRadius: '7px', cursor: 'pointer', fontSize: '12px', color: RED, fontWeight: '600', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <XCircle size={13}/> Tout effacer
                     </button>
                   )}
                 </div>
 
-                {/* Checklist */}
+                {/* Checklist avec Lucide icons */}
                 <div className="card" style={{ padding: '16px' }}>
                   <h3 style={{ fontSize: '13px', fontWeight: '800', color: NAVY, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <CheckCircle size={13} /> Checklist — {activeTab === 'avant' ? 'Départ' : 'Retour'}
                   </h3>
 
-                  <CheckItem label="Propreté intérieure"  field="propre_interieur"    icon="🧹" />
-                  <CheckItem label="Propreté extérieure"  field="propre_exterieur"    icon="✨" />
-                  <CheckItem label="Carte grise"          field="papier_carte_grise"  icon="📄" />
-                  <CheckItem label="Assurance"            field="papier_assurance"    icon="📋" />
-                  <CheckItem label="Route de secours"     field="route_secours"       icon="🔧" />
-                  <CheckItem label="Clés"                 field="cles"                icon="🔑" />
-                  <CheckItem label="Auto-radio"           field="autoradio"           icon="📻" />
+                  {CHECKLIST.map(item => {
+                    const val = currentEtat[item.field];
+                    return (
+                      <div key={item.field}
+                        onClick={() => setCurrentEtat(prev => ({ ...prev, [item.field]: !prev[item.field] }))}
+                        style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 14px', borderRadius: '10px', cursor: 'pointer', background: val ? '#F0FFF4' : '#FFF5F5', border: `1.5px solid ${val ? '#86EFAC' : '#FECACA'}`, marginBottom: '8px', transition: 'all 0.15s', userSelect: 'none' }}>
+                        <div style={{ color: val ? GREEN : RED, display: 'flex', flexShrink: 0 }}>{item.icon}</div>
+                        <span style={{ flex: 1, fontWeight: '600', fontSize: '13px', color: '#1A2535' }}>{item.label}</span>
+                        <span style={{ padding: '3px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', background: val ? GREEN : RED, color: 'white', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          {val ? <><CheckCircle size={11}/> OK</> : <><XCircle size={11}/> Manquant</>}
+                        </span>
+                      </div>
+                    );
+                  })}
 
                   {activeTab === 'apres' && (
                     <div style={{ marginTop: '12px', padding: '14px', background: '#FFF5F5', borderRadius: '10px', border: `2px solid ${RED}` }}>
                       <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: '700', color: RED, fontSize: '13px' }}>
-                        <input type="checkbox"
-                          checked={etatApres.a_accident}
-                          onChange={e => setEtatApres(prev => ({ ...prev, a_accident: e.target.checked }))}
-                          style={{ width: '17px', height: '17px' }} />
-                        <AlertTriangle size={15} /> Accident déclaré
+                        <input type="checkbox" checked={etatApres.a_accident} onChange={e => setEtatApres(prev => ({ ...prev, a_accident: e.target.checked }))} style={{ width: '17px', height: '17px' }} />
+                        <AlertTriangle size={15}/> Accident déclaré
                       </label>
                       {etatApres.a_accident && (
-                        <textarea value={etatApres.accident_description}
-                          onChange={e => setEtatApres(prev => ({ ...prev, accident_description: e.target.value }))}
-                          placeholder="Description de l'accident..."
-                          rows={3}
+                        <textarea value={etatApres.accident_description} onChange={e => setEtatApres(prev => ({ ...prev, accident_description: e.target.value }))}
+                          placeholder="Description de l'accident..." rows={3}
                           style={{ width: '100%', marginTop: '10px', padding: '8px', borderRadius: '8px', border: `1px solid ${RED}`, fontSize: '13px', resize: 'vertical' }} />
                       )}
                     </div>
                   )}
 
                   <div style={{ marginTop: '12px' }}>
-                    <label style={{ fontWeight: '700', fontSize: '12px', color: '#64748B', display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      📝 Notes libres
+                    <label style={{ fontWeight: '700', fontSize: '12px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      <FileText size={12}/> Notes libres
                     </label>
-                    <textarea value={currentEtat.notes}
-                      onChange={e => setCurrentEtat(prev => ({ ...prev, notes: e.target.value }))}
-                      placeholder="Observations supplémentaires..."
-                      rows={3}
+                    <textarea value={currentEtat.notes} onChange={e => setCurrentEtat(prev => ({ ...prev, notes: e.target.value }))}
+                      placeholder="Observations supplémentaires..." rows={3}
                       style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1.5px solid #DDE3ED', fontSize: '13px', resize: 'vertical' }} />
                   </div>
 
-                  {/* Summary */}
                   <div style={{ marginTop: '14px', padding: '12px 14px', background: problems === 0 ? '#F0FFF4' : '#FFF5F5', borderRadius: '10px', border: `1.5px solid ${problems === 0 ? '#86EFAC' : '#FECACA'}`, fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {problems === 0
-                      ? <><CheckCircle size={15} color={GREEN} /> <span style={{ color: GREEN }}>Tout OK — {currentEtat.eraflures.length} éraflure(s) · {currentEtat.bosses.length} bosse(s)</span></>
-                      : <><AlertTriangle size={15} color={RED} /> <span style={{ color: RED }}>{problems} problème(s) · {currentEtat.eraflures.length} éraflure(s) · {currentEtat.bosses.length} bosse(s)</span></>
+                      ? <><CheckCircle size={15} color={GREEN}/><span style={{ color: GREEN }}>Tout OK — {currentEtat.eraflures.length} éraflure(s) · {currentEtat.bosses.length} bosse(s)</span></>
+                      : <><AlertTriangle size={15} color={RED}/><span style={{ color: RED }}>{problems} problème(s) · {currentEtat.eraflures.length} éraflure(s) · {currentEtat.bosses.length} bosse(s)</span></>
                     }
                   </div>
                 </div>
               </div>
 
-              {/* Save button */}
+              {/* Save */}
               <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '12px', alignItems: 'center' }}>
                 {saved && (
                   <span style={{ color: GREEN, fontWeight: '700', fontSize: '14px', background: '#F0FFF4', padding: '10px 18px', borderRadius: '10px', border: '1.5px solid #86EFAC', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <CheckCircle size={15} /> Sauvegardé avec succès!
+                    <CheckCircle size={15}/> Sauvegardé avec succès!
                   </span>
                 )}
                 <button onClick={handleSave} disabled={loading}
                   style={{ padding: '12px 32px', background: loading ? '#94A3B8' : NAVY, color: 'white', border: 'none', borderRadius: '12px', cursor: loading ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Save size={16} />
-                  {loading ? 'Enregistrement...' : 'Sauvegarder l\'état'}
+                  <Save size={16}/> {loading ? 'Enregistrement...' : "Sauvegarder l'état"}
                 </button>
               </div>
             </>
