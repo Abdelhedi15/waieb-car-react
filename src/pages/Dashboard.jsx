@@ -6,8 +6,8 @@ import {
 import {
   LayoutDashboard, Car, Tag, Users, CalendarCheck,
   Banknote, AlertTriangle, ChevronDown, ChevronRight,
-  TrendingUp, RotateCcw, UserCheck, X, Star, ClipboardList,
-  Wrench, Shield, Eye, Activity,
+  RotateCcw, UserCheck, X, ClipboardList,
+  Shield, Activity,
 } from 'lucide-react';
 import api from '../api/axios';
 
@@ -18,11 +18,6 @@ const RED    = '#DC2626';
 const PURPLE = '#7C3AED';
 
 const getAge = (d) => !d ? 0 : (new Date() - new Date(d)) / (1000*60*60*24*365.25);
-const getVendreLabel = (d) => {
-  if (!d) return null;
-  const v = new Date(new Date(d).getTime() + 3.5*365.25*24*3600*1000);
-  return { key:`${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}`, label:`${['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][v.getMonth()]} ${v.getFullYear()}` };
-};
 const hasDamage = (r) => r.a_accident || r.etat_retour === 'dommages';
 const SOLD = ['vendu','a_vendre'];
 const MONTHS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
@@ -52,33 +47,44 @@ export default function Dashboard() {
   },[]);
 
   const yr = new Date().getFullYear();
-  const mo = new Date().getMonth();
   const today = new Date(); today.setHours(0,0,0,0);
 
   const activeVeh = vehicles.filter(v=>!SOLD.includes(v.statut));
+  const aVendre   = vehicles.filter(v => v.statut === 'a_vendre');
 
-  // ✅ FIX 1 — "À vendre" = statut explicitement a_vendre (pas calcul d'âge)
-  const aVendre = vehicles.filter(v => v.statut === 'a_vendre');
+  // cutoff = date intro feature inspection (anciennes rés. ignorées)
+  const cutoff = new Date('2026-06-01'); cutoff.setHours(0,0,0,0);
 
-  const cutoff = new Date('2026-06-01'); // ← date intro de la feature inspection
-cutoff.setHours(0,0,0,0);
-
-const aInspecter = reservations.filter(r => {
-  if (r.statut !== 'confirmée' || r.inspection_retour_faite) return false;
-  const f = new Date(r.date_fin); f.setHours(0,0,0,0);
-  return f.getTime() <= today.getTime() && f.getTime() >= cutoff.getTime();
-});
+  const aInspecter = reservations.filter(r => {
+    if (r.statut !== 'confirmée' || r.inspection_retour_faite) return false;
+    const f = new Date(r.date_fin); f.setHours(0,0,0,0);
+    return f.getTime() <= today.getTime() && f.getTime() >= cutoff.getTime();
+  });
 
   const totalRevenus   = payments.filter(p=>p.statut==='payé').reduce((s,p)=>s+parseFloat(p.montant),0);
   const totalAccidents = reservations.filter(r=>hasDamage(r)).length;
   const nbConfirmees   = reservations.filter(r=>r.statut==='confirmée').length;
 
+  // ✅ monthlyData avec inspections_faites + inspections_attente
   const monthlyData = MONTHS.map((m,i)=>{
     const mr = reservations.filter(r=>{const d=new Date(r.date_debut);return d.getFullYear()===yr&&d.getMonth()===i;});
+    const inspFaites = reservations.filter(r=>{
+      if(!r.inspection_retour_faite) return false;
+      const f=new Date(r.date_fin); f.setHours(0,0,0,0);
+      return f.getFullYear()===yr && f.getMonth()===i && f>=cutoff;
+    });
+    const inspAttente = reservations.filter(r=>{
+      if(r.statut!=='confirmée'||r.inspection_retour_faite) return false;
+      const f=new Date(r.date_fin); f.setHours(0,0,0,0);
+      return f.getFullYear()===yr && f.getMonth()===i && f<=today && f>=cutoff;
+    });
     return {
-      mois:m, reservations:mr.length,
+      mois:m,
+      reservations:mr.length,
       accidents:mr.filter(r=>hasDamage(r)).length,
       inspections:mr.filter(r=>r.inspection_retour_faite).length,
+      inspections_faites: inspFaites.length,
+      inspections_attente: inspAttente.length,
       contrats:contracts.filter(ct=>{const d=new Date(ct.date_contrat);return d.getFullYear()===yr&&d.getMonth()===i;}).length,
     };
   });
@@ -97,16 +103,11 @@ const aInspecter = reservations.filter(r => {
     accidents:reservations.filter(r=>r.client===c.id&&hasDamage(r)).length,
   })).filter(c=>c.reservations>0).sort((a,b)=>b.reservations-a.reservations).slice(0,8);
 
-  const vendreData = (()=>{
-    const map={};
-    activeVeh.forEach(v=>{
-      const d=getVendreLabel(v.date_acquisition);
-      if(!d) return;
-      if(!map[d.key]) map[d.key]={key:d.key,label:d.label,nb:0};
-      map[d.key].nb++;
-    });
-    return Object.values(map).sort((a,b)=>a.key.localeCompare(b.key));
-  })();
+  // ✅ vendreData = véhicules avec statut a_vendre (pas calcul âge)
+  const vendreData = vehicles.filter(v=>v.statut==='a_vendre').map(v=>({
+    name:`${v.marque} ${v.modele}`.substring(0,14),
+    age: parseFloat(getAge(v.date_acquisition).toFixed(1)),
+  }));
 
   const tauxOccupation = activeVeh.map(v=>({
     name:`${v.marque} ${v.modele}`.substring(0,14),
@@ -118,15 +119,17 @@ const aInspecter = reservations.filter(r => {
   const T={fontSize:11,fill:'#94A3B8'};
   const C={borderRadius:'8px',border:'1px solid #E2E8F0',fontSize:'12px',background:'white'};
 
+  // ✅ charts avec "Inspections de retour" + "Véhicules à vendre" (pas à renouveler)
   const charts=[
-    {v:'activite',  label:'Activité mensuelle',     icon:<Activity size={14}/>,     desc:'Réservations, contrats, inspections et dommages'},
-    {v:'depenses',  label:'Revenus par client',      icon:<Banknote size={14}/>,     desc:'Montants encaissés par client (DT)'},
-    {v:'occupation',label:'Occupation véhicules',    icon:<Car size={14}/>,          desc:'Nombre de réservations par véhicule'},
-    {v:'fidelite',  label:'Fidélité clients',        icon:<UserCheck size={14}/>,    desc:'Réservations par client'},
-    {v:'accidents', label:'Dommages par mois',       icon:<AlertTriangle size={14}/>,desc:'Accidents et dommages déclarés'},
-    {v:'vendre',    label:'Véhicules à renouveler',  icon:<Tag size={14}/>,          desc:'Véhicules atteignant 3.5 ans par mois'},
-    {v:'annulations',label:'Annulations clients',    icon:<X size={14}/>,            desc:'Réservations annulées par client'},
-    {v:'remplacements',label:'Remplacements',        icon:<RotateCcw size={14}/>,    desc:'Remplacements suite à incident'},
+    {v:'activite',    label:'Activité mensuelle',     icon:<Activity size={14}/>,      desc:'Réservations, contrats, inspections et dommages'},
+    {v:'depenses',    label:'Revenus par client',      icon:<Banknote size={14}/>,      desc:'Montants encaissés par client (DT)'},
+    {v:'occupation',  label:'Occupation véhicules',    icon:<Car size={14}/>,           desc:'Nombre de réservations par véhicule'},
+    {v:'fidelite',    label:'Fidélité clients',        icon:<UserCheck size={14}/>,     desc:'Réservations par client'},
+    {v:'accidents',   label:'Dommages par mois',       icon:<AlertTriangle size={14}/>, desc:'Accidents et dommages déclarés'},
+    {v:'inspections', label:'Inspections de retour',   icon:<ClipboardList size={14}/>, desc:'Inspections faites vs en attente par mois (depuis Juin 2026)'},
+    {v:'vendre',      label:'Véhicules à vendre',      icon:<Tag size={14}/>,           desc:'Véhicules avec statut à vendre — âge du parc'},
+    {v:'annulations', label:'Annulations clients',     icon:<X size={14}/>,             desc:'Réservations annulées par client'},
+    {v:'remplacements',label:'Remplacements',          icon:<RotateCcw size={14}/>,     desc:'Remplacements suite à incident'},
   ];
   const sel=charts.find(c=>c.v===chart)||charts[0];
 
@@ -160,8 +163,8 @@ const aInspecter = reservations.filter(r => {
           <BarChart data={tauxOccupation} margin={{top:10,right:20,left:0,bottom:50}}>
             <CartesianGrid {...G}/><XAxis dataKey="name" tick={T} angle={-30} textAnchor="end" interval={0}/>
             <YAxis tick={T} allowDecimals={false}/><Tooltip contentStyle={C}/><Legend wrapperStyle={{fontSize:'12px'}}/>
-            <Bar dataKey="reservations" fill={NAVY}  radius={[5,5,0,0]} name="Réservations"/>
-            <Bar dataKey="accidents"    fill={RED}   radius={[5,5,0,0]} name="Dommages"/>
+            <Bar dataKey="reservations" fill={NAVY} radius={[5,5,0,0]} name="Réservations"/>
+            <Bar dataKey="accidents"    fill={RED}  radius={[5,5,0,0]} name="Dommages"/>
           </BarChart>
         </ResponsiveContainer>
       );
@@ -184,12 +187,30 @@ const aInspecter = reservations.filter(r => {
           </BarChart>
         </ResponsiveContainer>
       );
-      case 'vendre': return (
+      // ✅ NOUVEAU — Inspections de retour faites vs en attente par mois
+      case 'inspections': return (
+        <ResponsiveContainer width="100%" height={320}>
+          <BarChart data={monthlyData} margin={{top:10,right:20,left:0,bottom:0}}>
+            <CartesianGrid {...G}/><XAxis dataKey="mois" tick={T}/><YAxis tick={T} allowDecimals={false}/>
+            <Tooltip contentStyle={C}/><Legend wrapperStyle={{fontSize:'12px'}}/>
+            <Bar dataKey="inspections_faites"  fill={GREEN}  radius={[5,5,0,0]} name="Faites ✅"/>
+            <Bar dataKey="inspections_attente" fill={PURPLE} radius={[5,5,0,0]} name="En attente ⏳"/>
+          </BarChart>
+        </ResponsiveContainer>
+      );
+      // ✅ MODIFIÉ — Véhicules à vendre (statut a_vendre) avec leur âge
+      case 'vendre': return vendreData.length === 0 ? (
+        <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'320px',flexDirection:'column',gap:'12px',color:'#94A3B8'}}>
+          <Tag size={40} color="#E2E8F0"/>
+          <span style={{fontSize:'14px',fontWeight:'600'}}>Aucun véhicule à vendre actuellement</span>
+        </div>
+      ) : (
         <ResponsiveContainer width="100%" height={320}>
           <BarChart data={vendreData} margin={{top:10,right:20,left:0,bottom:50}}>
-            <CartesianGrid {...G}/><XAxis dataKey="label" tick={T} angle={-30} textAnchor="end" interval={0}/>
-            <YAxis tick={T} allowDecimals={false}/><Tooltip contentStyle={C}/>
-            <Bar dataKey="nb" fill={AMBER} radius={[5,5,0,0]} name="À renouveler"/>
+            <CartesianGrid {...G}/><XAxis dataKey="name" tick={T} angle={-30} textAnchor="end" interval={0}/>
+            <YAxis tick={T} tickFormatter={v=>`${v}a`}/>
+            <Tooltip formatter={v=>`${v} ans`} contentStyle={C}/>
+            <Bar dataKey="age" fill={AMBER} radius={[5,5,0,0]} name="Âge (années)"/>
           </BarChart>
         </ResponsiveContainer>
       );
@@ -239,7 +260,6 @@ const aInspecter = reservations.filter(r => {
     </div>
   );
 
-  // ── STAT CARDS
   const statCards = [
     {
       label:'Véhicules actifs',
@@ -250,7 +270,6 @@ const aInspecter = reservations.filter(r => {
       valueColor: NAVY,
     },
     {
-      // ✅ FIX — "À vendre" = statut a_vendre explicite, pas calcul âge
       label:'À vendre',
       value: aVendre.length,
       sub: 'Statut à vendre',
@@ -295,7 +314,6 @@ const aInspecter = reservations.filter(r => {
       valueColor: totalAccidents > 0 ? RED : GREEN,
     },
     {
-      // ✅ FIX — date_fin <= today (pas seulement today exactement)
       label:'À inspecter',
       value: aInspecter.length,
       sub: aInspecter.length > 0 ? 'Retours en attente' : 'Aucun en attente',
@@ -321,18 +339,15 @@ const aInspecter = reservations.filter(r => {
         </div>
       </div>
 
-      {/* ── STAT CARDS */}
+      {/* STAT CARDS */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'12px',marginBottom:'28px'}}>
         {statCards.map((s,i)=>(
           <div key={i}
             style={{
               background: s.cardBg,
               border: `${s.cardBorderWidth||'0.5px'} solid ${s.cardBorder}`,
-              borderRadius:'12px',
-              padding:'16px 12px',
-              position:'relative',
-              cursor: s.urgent ? 'pointer' : 'default',
-              transition:'transform 0.15s',
+              borderRadius:'12px', padding:'16px 12px', position:'relative',
+              cursor: s.urgent ? 'pointer' : 'default', transition:'transform 0.15s',
             }}
             onMouseEnter={e=>e.currentTarget.style.transform='translateY(-2px)'}
             onMouseLeave={e=>e.currentTarget.style.transform='translateY(0)'}
@@ -348,26 +363,18 @@ const aInspecter = reservations.filter(r => {
             <div style={{fontSize: String(s.value).length > 7 ? '15px' : '22px', fontWeight:'700',color:s.valueColor,lineHeight:1,marginBottom:'4px'}}>
               {s.value}
             </div>
-            <div style={{fontSize:'11px',fontWeight:'600',color:'#475569',marginBottom:'2px'}}>
-              {s.label}
-            </div>
-            <div style={{fontSize:'10px',color:'#94A3B8'}}>
-              {s.sub}
-            </div>
+            <div style={{fontSize:'11px',fontWeight:'600',color:'#475569',marginBottom:'2px'}}>{s.label}</div>
+            <div style={{fontSize:'10px',color:'#94A3B8'}}>{s.sub}</div>
           </div>
         ))}
       </div>
 
-      {/* ── ALERTS */}
+      {/* ALERTS */}
       <div style={{display:'flex',flexDirection:'column',gap:'12px',marginBottom:'24px'}}>
 
-        {/* ✅ Inspection retour — date_fin <= today */}
+        {/* Inspection retour */}
         {aInspecter.length > 0 && (
-          <div style={{
-            background:'linear-gradient(135deg, #4C1D95 0%, #6D28D9 100%)',
-            borderRadius:'16px', padding:'20px 24px',
-            boxShadow:'0 8px 32px rgba(109,40,217,0.35)',
-          }}>
+          <div style={{background:'linear-gradient(135deg, #4C1D95 0%, #6D28D9 100%)',borderRadius:'16px',padding:'20px 24px',boxShadow:'0 8px 32px rgba(109,40,217,0.35)'}}>
             <div style={{display:'flex',alignItems:'center',gap:'16px',marginBottom:'16px'}}>
               <div style={{width:'52px',height:'52px',background:'rgba(255,255,255,0.18)',borderRadius:'14px',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,position:'relative'}}>
                 <ClipboardList size={26} color="white"/>
@@ -410,13 +417,9 @@ const aInspecter = reservations.filter(r => {
           </div>
         )}
 
-        {/* ✅ À vendre — statut explicite a_vendre */}
+        {/* À vendre */}
         {aVendre.length > 0 && (
-          <div style={{
-            background:'linear-gradient(135deg, #92400E 0%, #D97706 100%)',
-            borderRadius:'16px', padding:'20px 24px',
-            boxShadow:'0 8px 24px rgba(217,119,6,0.3)',
-          }}>
+          <div style={{background:'linear-gradient(135deg, #92400E 0%, #D97706 100%)',borderRadius:'16px',padding:'20px 24px',boxShadow:'0 8px 24px rgba(217,119,6,0.3)'}}>
             <div style={{display:'flex',alignItems:'center',gap:'16px',marginBottom:'14px'}}>
               <div style={{width:'52px',height:'52px',background:'rgba(255,255,255,0.18)',borderRadius:'14px',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                 <Tag size={26} color="white"/>
