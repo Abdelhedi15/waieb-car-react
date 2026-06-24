@@ -414,11 +414,31 @@ const RapportEtatModal = ({vehicle,reservations,onClose,onDommageSignale}) => {
 
                 {vRes.length>0&&(
                   <div style={{marginBottom:'10px'}}>
-                    <label style={{fontSize:'10.5px',fontWeight:'700',color:'#64748B',display:'block',marginBottom:'3px'}}>Lier à une réservation (optionnel)</label>
-                    <select value={sigRes} onChange={e=>setSigRes(e.target.value)} style={{width:'100%',padding:'7px',borderRadius:'7px',border:'1.5px solid #DDE3ED',fontSize:'12px'}}>
+                    <label style={{fontSize:'10.5px',fontWeight:'700',color:sigType==='accident'?'#DC2626':'#64748B',display:'flex',alignItems:'center',gap:'5px',marginBottom:'4px'}}>
+                      {sigType==='accident'&&<ShieldAlert size={12}/>}
+                      Lier à une réservation {sigType==='accident'?<span style={{color:'#DC2626'}}>* (obligatoire pour accident)</span>:'(optionnel)'}
+                    </label>
+                    <select value={sigRes} onChange={e=>setSigRes(e.target.value)}
+                      style={{width:'100%',padding:'7px',borderRadius:'7px',border:`1.5px solid ${sigType==='accident'&&!sigRes?'#FECACA':'#DDE3ED'}`,fontSize:'12px'}}>
                       <option value="">-- Sans réservation (incident garage) --</option>
-                      {vRes.map(r=><option key={r.id} value={r.id}>#{r.id} · {r.date_debut} → {r.date_fin} · {r.client_nom||`Client #${r.client}`}</option>)}
+                      {/* Actives / futures d'abord */}
+                      {vRes.filter(r=>['confirmée','en_attente'].includes(r.statut)&&new Date(r.date_fin)>=new Date()).map(r=>(
+                        <option key={r.id} value={r.id}>
+                          ▶ #{r.id} · {r.date_debut} → {r.date_fin} · {r.client_nom||`Client #${r.client}`} [{r.statut}]
+                        </option>
+                      ))}
+                      {/* Terminées */}
+                      {vRes.filter(r=>r.statut==='terminée'||new Date(r.date_fin)<new Date()).map(r=>(
+                        <option key={r.id} value={r.id}>
+                          ✓ #{r.id} · {r.date_debut} → {r.date_fin} · {r.client_nom||`Client #${r.client}`}
+                        </option>
+                      ))}
                     </select>
+                    {sigType==='accident'&&!sigRes&&(
+                      <div style={{fontSize:'10.5px',color:'#DC2626',fontWeight:'600',marginTop:'3px',display:'flex',alignItems:'center',gap:'3px'}}>
+                        <AlertTriangle size={10}/> Sélectionnez la réservation concernée pour déclencher le remplacement de véhicule
+                      </div>
+                    )}
                   </div>
                 )}
 
