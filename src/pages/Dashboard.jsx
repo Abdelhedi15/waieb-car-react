@@ -52,31 +52,33 @@ export default function Dashboard() {
   const activeVeh = vehicles.filter(v=>!SOLD.includes(v.statut));
   const aVendre   = vehicles.filter(v => v.statut === 'a_vendre');
 
-  // cutoff = date intro feature inspection (anciennes rés. ignorées)
-  const cutoff = new Date('2026-06-01'); cutoff.setHours(0,0,0,0);
+  // ✅ Inspection — seulement hier et aujourd'hui (fenêtre 2 jours)
+  const hier = new Date(today); hier.setDate(hier.getDate() - 1);
 
   const aInspecter = reservations.filter(r => {
     if (r.statut !== 'confirmée' || r.inspection_retour_faite) return false;
     const f = new Date(r.date_fin); f.setHours(0,0,0,0);
-    return f.getTime() <= today.getTime() && f.getTime() >= cutoff.getTime();
+    return f.getTime() >= hier.getTime() && f.getTime() <= today.getTime();
   });
 
   const totalRevenus   = payments.filter(p=>p.statut==='payé').reduce((s,p)=>s+parseFloat(p.montant),0);
   const totalAccidents = reservations.filter(r=>hasDamage(r)).length;
   const nbConfirmees   = reservations.filter(r=>r.statut==='confirmée').length;
 
-  // ✅ monthlyData avec inspections_faites + inspections_attente
+  // ✅ Inspections par mois — faites (inspection_retour_faite=true) vs terminées sans inspection
   const monthlyData = MONTHS.map((m,i)=>{
     const mr = reservations.filter(r=>{const d=new Date(r.date_debut);return d.getFullYear()===yr&&d.getMonth()===i;});
+    // Inspections faites ce mois (basé sur date_fin)
     const inspFaites = reservations.filter(r=>{
       if(!r.inspection_retour_faite) return false;
       const f=new Date(r.date_fin); f.setHours(0,0,0,0);
-      return f.getFullYear()===yr && f.getMonth()===i && f>=cutoff;
+      return f.getFullYear()===yr && f.getMonth()===i;
     });
+    // Réservations terminées ce mois sans inspection (fenêtre hier-today)
     const inspAttente = reservations.filter(r=>{
       if(r.statut!=='confirmée'||r.inspection_retour_faite) return false;
       const f=new Date(r.date_fin); f.setHours(0,0,0,0);
-      return f.getFullYear()===yr && f.getMonth()===i && f<=today && f>=cutoff;
+      return f.getFullYear()===yr && f.getMonth()===i && f>=hier && f<=today;
     });
     return {
       mois:m,
@@ -103,7 +105,7 @@ export default function Dashboard() {
     accidents:reservations.filter(r=>r.client===c.id&&hasDamage(r)).length,
   })).filter(c=>c.reservations>0).sort((a,b)=>b.reservations-a.reservations).slice(0,8);
 
-  // ✅ vendreData = véhicules avec statut a_vendre (pas calcul âge)
+  // Véhicules à vendre = statut a_vendre explicite
   const vendreData = vehicles.filter(v=>v.statut==='a_vendre').map(v=>({
     name:`${v.marque} ${v.modele}`.substring(0,14),
     age: parseFloat(getAge(v.date_acquisition).toFixed(1)),
@@ -119,14 +121,13 @@ export default function Dashboard() {
   const T={fontSize:11,fill:'#94A3B8'};
   const C={borderRadius:'8px',border:'1px solid #E2E8F0',fontSize:'12px',background:'white'};
 
-  // ✅ charts avec "Inspections de retour" + "Véhicules à vendre" (pas à renouveler)
   const charts=[
     {v:'activite',    label:'Activité mensuelle',     icon:<Activity size={14}/>,      desc:'Réservations, contrats, inspections et dommages'},
     {v:'depenses',    label:'Revenus par client',      icon:<Banknote size={14}/>,      desc:'Montants encaissés par client (DT)'},
     {v:'occupation',  label:'Occupation véhicules',    icon:<Car size={14}/>,           desc:'Nombre de réservations par véhicule'},
     {v:'fidelite',    label:'Fidélité clients',        icon:<UserCheck size={14}/>,     desc:'Réservations par client'},
     {v:'accidents',   label:'Dommages par mois',       icon:<AlertTriangle size={14}/>, desc:'Accidents et dommages déclarés'},
-    {v:'inspections', label:'Inspections de retour',   icon:<ClipboardList size={14}/>, desc:'Inspections faites vs en attente par mois (depuis Juin 2026)'},
+    {v:'inspections', label:'Inspections de retour',   icon:<ClipboardList size={14}/>, desc:'Inspections faites ✅ vs non faites ⏳ par mois'},
     {v:'vendre',      label:'Véhicules à vendre',      icon:<Tag size={14}/>,           desc:'Véhicules avec statut à vendre — âge du parc'},
     {v:'annulations', label:'Annulations clients',     icon:<X size={14}/>,             desc:'Réservations annulées par client'},
     {v:'remplacements',label:'Remplacements',          icon:<RotateCcw size={14}/>,     desc:'Remplacements suite à incident'},
@@ -142,7 +143,7 @@ export default function Dashboard() {
             <Tooltip contentStyle={C}/><Legend wrapperStyle={{fontSize:'12px'}}/>
             <Line type="monotone" dataKey="reservations" stroke={NAVY}   strokeWidth={2.5} dot={{r:4}} name="Réservations"/>
             <Line type="monotone" dataKey="contrats"     stroke={PURPLE} strokeWidth={2.5} dot={{r:4}} name="Contrats"/>
-            <Line type="monotone" dataKey="inspections"  stroke={GREEN}  strokeWidth={2.5} dot={{r:4}} name="Inspections"/>
+            <Line type="monotone" dataKey="inspections"  stroke={GREEN}  strokeWidth={2.5} dot={{r:4}} name="Inspections faites"/>
             <Line type="monotone" dataKey="accidents"    stroke={RED}    strokeWidth={2.5} dot={{r:4}} name="Dommages" strokeDasharray="5 5"/>
           </LineChart>
         </ResponsiveContainer>
@@ -187,18 +188,32 @@ export default function Dashboard() {
           </BarChart>
         </ResponsiveContainer>
       );
-      // ✅ NOUVEAU — Inspections de retour faites vs en attente par mois
+      // ✅ Inspections de retour — faites vs non faites par mois
       case 'inspections': return (
-        <ResponsiveContainer width="100%" height={320}>
-          <BarChart data={monthlyData} margin={{top:10,right:20,left:0,bottom:0}}>
-            <CartesianGrid {...G}/><XAxis dataKey="mois" tick={T}/><YAxis tick={T} allowDecimals={false}/>
-            <Tooltip contentStyle={C}/><Legend wrapperStyle={{fontSize:'12px'}}/>
-            <Bar dataKey="inspections_faites"  fill={GREEN}  radius={[5,5,0,0]} name="Faites ✅"/>
-            <Bar dataKey="inspections_attente" fill={PURPLE} radius={[5,5,0,0]} name="En attente ⏳"/>
-          </BarChart>
-        </ResponsiveContainer>
+        <div>
+          <div style={{display:'flex',gap:'16px',marginBottom:'12px',padding:'0 4px'}}>
+            {[
+              {label:'Total inspectées',value:reservations.filter(r=>r.inspection_retour_faite).length,color:GREEN,bg:'#DCFCE7'},
+              {label:'En attente',value:aInspecter.length,color:PURPLE,bg:'#F3EEFF'},
+              {label:'Taux inspection',value:`${reservations.filter(r=>r.statut==='terminée').length>0?Math.round(reservations.filter(r=>r.inspection_retour_faite).length/Math.max(reservations.filter(r=>['terminée','confirmée'].includes(r.statut)&&new Date(r.date_fin)<=today).length,1)*100):0}%`,color:NAVY,bg:'#EFF4FB'},
+            ].map(s=>(
+              <div key={s.label} style={{flex:1,background:s.bg,borderRadius:'10px',padding:'10px 14px',textAlign:'center'}}>
+                <div style={{fontWeight:'800',fontSize:'20px',color:s.color}}>{s.value}</div>
+                <div style={{fontSize:'11px',color:'#64748B',fontWeight:'600'}}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={monthlyData} margin={{top:10,right:20,left:0,bottom:0}}>
+              <CartesianGrid {...G}/><XAxis dataKey="mois" tick={T}/><YAxis tick={T} allowDecimals={false}/>
+              <Tooltip contentStyle={C}/><Legend wrapperStyle={{fontSize:'12px'}}/>
+              <Bar dataKey="inspections_faites"  fill={GREEN}  radius={[5,5,0,0]} name="Inspectées ✅"/>
+              <Bar dataKey="inspections_attente" fill={PURPLE} radius={[5,5,0,0]} name="Non inspectées ⏳"/>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       );
-      // ✅ MODIFIÉ — Véhicules à vendre (statut a_vendre) avec leur âge
+      // ✅ Véhicules à vendre — statut a_vendre avec âge
       case 'vendre': return vendreData.length === 0 ? (
         <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'320px',flexDirection:'column',gap:'12px',color:'#94A3B8'}}>
           <Tag size={40} color="#E2E8F0"/>
@@ -372,7 +387,7 @@ export default function Dashboard() {
       {/* ALERTS */}
       <div style={{display:'flex',flexDirection:'column',gap:'12px',marginBottom:'24px'}}>
 
-        {/* Inspection retour */}
+        {/* ✅ Inspection retour — TOUTES les confirmées avec date_fin <= today et non inspectées */}
         {aInspecter.length > 0 && (
           <div style={{background:'linear-gradient(135deg, #4C1D95 0%, #6D28D9 100%)',borderRadius:'16px',padding:'20px 24px',boxShadow:'0 8px 32px rgba(109,40,217,0.35)'}}>
             <div style={{display:'flex',alignItems:'center',gap:'16px',marginBottom:'16px'}}>
@@ -390,13 +405,17 @@ export default function Dashboard() {
                   Réservations terminées — inspection obligatoire avant clôture
                 </div>
               </div>
+              <button onClick={()=>setChart('inspections')}
+                style={{padding:'9px 18px',background:'rgba(255,255,255,0.22)',color:'white',border:'1.5px solid rgba(255,255,255,0.4)',borderRadius:'10px',cursor:'pointer',fontWeight:'700',fontSize:'13px',display:'flex',alignItems:'center',gap:'6px',flexShrink:0}}>
+                Stats <ChevronRight size={15}/>
+              </button>
             </div>
             <div style={{display:'flex',gap:'10px',flexWrap:'wrap'}}>
               {aInspecter.map(r=>{
                 const cl=clients.find(c=>c.id===r.client);
                 const vh=vehicles.find(v=>v.id===r.vehicle);
                 const f=new Date(r.date_fin);
-                const isOverdue = f.getTime() < today.getTime();
+                const diffDays = Math.round((today - f) / (1000*60*60*24));
                 return (
                   <div key={r.id} style={{background:'rgba(255,255,255,0.15)',backdropFilter:'blur(8px)',borderRadius:'10px',padding:'10px 16px',color:'white',fontSize:'13px',fontWeight:'600',border:'1px solid rgba(255,255,255,0.25)',display:'flex',alignItems:'center',gap:'10px'}}>
                     <Car size={16} color="rgba(255,255,255,0.8)"/>
@@ -405,9 +424,10 @@ export default function Dashboard() {
                     <span>{vh?.marque} {vh?.modele}</span>
                     <span style={{color:'rgba(255,255,255,0.75)'}}>·</span>
                     <span style={{color:'rgba(255,255,255,0.75)'}}>{cl?.prenom} {cl?.nom}</span>
-                    {isOverdue && (
+                    <span style={{color:'rgba(255,255,255,0.75)'}}>· Fin: {r.date_fin}</span>
+                    {diffDays > 0 && (
                       <span style={{background:'rgba(220,38,38,0.7)',padding:'2px 8px',borderRadius:'6px',fontSize:'11px',fontWeight:'800'}}>
-                        En retard
+                        {diffDays}j retard
                       </span>
                     )}
                   </div>
