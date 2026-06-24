@@ -266,10 +266,35 @@ const RapportEtatModal = ({vehicle,reservations,onClose,onDommageSignale}) => {
 
   const handleSignaler=async()=>{
     if(!sigNotes.trim()){alert('Décrivez le dommage avant de sauvegarder.');return;}
+
+    // ✅ FIX 2 — Bloquer si accident non réparé existe déjà
+    if(sigType==='accident'){
+      const unrepairedAcc=incidents.find(i=>i.type_incident==='accident'&&!i.repare);
+      if(unrepairedAcc){
+        alert('⚠️ Un accident non réparé existe déjà pour ce véhicule.\nMarquez-le comme "Réparé" avant d\'en enregistrer un nouveau.');
+        return;
+      }
+    }
+
     setSigLoading(true);
     try{
-      const payload={vehicle:vehicle.id,type_incident:sigType,gravite:sigGravite,zone:sigZone,description:sigNotes.trim(),date_incident:sigDate,cout_reparation:sigCout?parseFloat(sigCout):null,...(sigRes?{reservation:parseInt(sigRes)}:{})};
+      // ✅ FIX 1 — Si pas de réservation sélectionnée, auto-détecter la réservation active/future
+      let targetResId = sigRes ? parseInt(sigRes) : null;
+      if(!targetResId && sigType==='accident'){
+        const todayStr=new Date().toISOString().split('T')[0];
+        const activeRes=vRes.find(r=>r.date_fin>=todayStr&&['confirmée','en_attente'].includes(r.statut));
+        if(activeRes) targetResId=activeRes.id;
+      }
+
+      const payload={vehicle:vehicle.id,type_incident:sigType,gravite:sigGravite,zone:sigZone,description:sigNotes.trim(),date_incident:sigDate,cout_reparation:sigCout?parseFloat(sigCout):null,...(targetResId?{reservation:targetResId}:{})};
       await api.post('/incidents/',payload);
+
+      // ✅ FIX 1 — Marquer a_accident=true sur la réservation concernée → apparaît dans filtre
+      if(sigType==='accident'&&targetResId){
+        try{ await api.patch(`/reservations/${targetResId}/`,{a_accident:true}); }
+        catch(e){ console.warn('Could not flag reservation as accident:',e); }
+      }
+
       setSigDone(true);if(onDommageSignale)onDommageSignale();
       setTimeout(()=>{setSigDone(false);setShowSignal(false);setSigNotes('');setSigZone('');setSigType('impact');setSigGravite('mineur');setSigCout('');setSigRes('');},2200);
     }catch(err){alert('Erreur : '+JSON.stringify(err?.response?.data||err?.message));}
@@ -318,25 +343,42 @@ const RapportEtatModal = ({vehicle,reservations,onClose,onDommageSignale}) => {
                 </div>
 
                 {/* ✅ Boutons type avec Lucide icons */}
-                <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'8px',marginBottom:'12px'}}>
-                  {SIG_TYPES.map(t=>{
-                    const active=sigType===t.key;
-                    return (
-                      <button key={t.key} onClick={()=>setSigType(t.key)}
-                        style={{padding:'12px 6px',borderRadius:'10px',cursor:'pointer',textAlign:'center',
-                          border:`2px solid ${active?t.color:t.border}`,
-                          background:active?t.color:t.bg,
-                          color:active?'white':t.color,
-                          fontWeight:'700',fontSize:'11.5px',
-                          display:'flex',flexDirection:'column',alignItems:'center',gap:'7px',
-                          transition:'all 0.15s',
-                          boxShadow:active?`0 4px 12px ${t.color}40`:'none'}}>
-                        <div style={{color:active?'white':t.color,display:'flex'}}>{t.icon}</div>
-                        {t.label}
-                      </button>
-                    );
-                  })}
-                </div>
+                {(() => {
+                  const hasUnrepairedAcc = incidents.some(i=>i.type_incident==='accident'&&!i.repare);
+                  return (
+                    <>
+                      {hasUnrepairedAcc && (
+                        <div style={{background:'#FEF9C3',border:'1.5px solid #FCD34D',borderRadius:'9px',padding:'9px 13px',marginBottom:'10px',display:'flex',alignItems:'center',gap:'8px',fontSize:'12px',color:'#92580A',fontWeight:'700'}}>
+                          <ShieldAlert size={14} color="#D97706"/>
+                          Accident déjà en cours — marquez-le comme réparé avant d'en enregistrer un nouveau.
+                        </div>
+                      )}
+                      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'8px',marginBottom:'12px'}}>
+                        {SIG_TYPES.map(t=>{
+                          const active=sigType===t.key;
+                          const blocked=t.key==='accident'&&hasUnrepairedAcc;
+                          return (
+                            <button key={t.key}
+                              onClick={()=>!blocked&&setSigType(t.key)}
+                              disabled={blocked}
+                              style={{padding:'12px 6px',borderRadius:'10px',cursor:blocked?'not-allowed':'pointer',textAlign:'center',
+                                border:`2px solid ${blocked?'#E2E8F0':active?t.color:t.border}`,
+                                background:blocked?'#F1F5F9':active?t.color:t.bg,
+                                color:blocked?'#CBD5E1':active?'white':t.color,
+                                fontWeight:'700',fontSize:'11.5px',
+                                display:'flex',flexDirection:'column',alignItems:'center',gap:'7px',
+                                transition:'all 0.15s',opacity:blocked?0.5:1,
+                                boxShadow:active&&!blocked?`0 4px 12px ${t.color}40`:'none'}}>
+                              <div style={{color:blocked?'#CBD5E1':active?'white':t.color,display:'flex'}}>{t.icon}</div>
+                              {t.label}
+                              {blocked && <span style={{fontSize:'9px',color:'#F59E0B',fontWeight:'700',lineHeight:1}}>🔒 Non dispo</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  );
+                })()}
 
                 <div style={{display:'flex',gap:'6px',marginBottom:'12px',alignItems:'center'}}>
                   <span style={{fontSize:'11px',fontWeight:'700',color:'#64748B',marginRight:'4px'}}>Gravité :</span>
