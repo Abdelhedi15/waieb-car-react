@@ -12,7 +12,6 @@ const AMBER = '#E8A020';
 const GREEN = '#16A34A';
 const RED   = '#DC2626';
 
-// ✅ Photos par immatriculation
 const IMMAT_PHOTOS = {
   '240TN5082': 'https://i.ibb.co/FZmVWK6/vec1.jpg',
   '259TN5651': 'https://i.ibb.co/F4SbDBMM/vec2.jpg',
@@ -37,15 +36,16 @@ const IMMAT_PHOTOS = {
   '265TN2109': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155235/vec21_bjkcyt.jpg',
   '266TN2210': 'https://res.cloudinary.com/dmv2bu8n7/image/upload/v1780155236/vec22_gkpzax.jpg',
 };
-
 const DEFAULT_PHOTO = 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=300&q=70';
-
-// ✅ Priorité : photo Django → IMMAT_PHOTOS par immatriculation → défaut
 const getPhoto = (v) => {
   if (!v) return DEFAULT_PHOTO;
   if (v.photo) return `https://web-production-e6e97.up.railway.app${v.photo}`;
   return IMMAT_PHOTOS[v.immatriculation] || DEFAULT_PHOTO;
 };
+
+// ✅ FIX : détection RDV par statut Django, pas par les notes
+const isRdvEspeces = (r) => r.statut === 'en_attente_rdv';
+const isPending = (r) => ['en_attente', 'en_attente_rdv'].includes(r.statut);
 
 const Confirmations = () => {
   const [reservations, setReservations] = useState([]);
@@ -55,6 +55,7 @@ const Confirmations = () => {
   const [processing,   setProcessing]   = useState({});
   const [filter,       setFilter]       = useState('all');
   const [lastRefresh,  setLastRefresh]  = useState(new Date());
+  const [toast,        setToast]        = useState(null); // { msg, type }
 
   const fetchAll = useCallback(async () => {
     try {
@@ -77,25 +78,40 @@ const Confirmations = () => {
     return () => clearInterval(iv);
   }, [fetchAll]);
 
-  const pending = reservations.filter(r => r.statut === 'en_attente');
-  const rdvPending = pending.filter(r =>
-    r.notes?.toLowerCase().includes('rdv') || r.notes?.toLowerCase().includes('espèces')
-  );
-  const directPending = pending.filter(r =>
-    !r.notes?.toLowerCase().includes('rdv') && !r.notes?.toLowerCase().includes('espèces')
-  );
+  // ✅ FIX — filtrage par statut Django réel
+  const pending      = reservations.filter(isPending);
+  const rdvPending   = pending.filter(isRdvEspeces);          // statut='en_attente_rdv'
+  const directPending = pending.filter(r => !isRdvEspeces(r)); // statut='en_attente' (carte ou mobile)
 
-  const displayed = filter === 'rdv' ? rdvPending
-    : filter === 'reservation' ? directPending
-    : pending;
+  const displayed = filter === 'rdv'         ? rdvPending
+                  : filter === 'reservation' ? directPending
+                  : pending;
 
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  // ✅ FIX — handleAction envoie email + message visible
   const handleAction = async (id, statut) => {
+    const label = statut === 'confirmée' ? 'confirmée' : 'annulée';
     setProcessing(p => ({ ...p, [id]: statut }));
     try {
       await api.patch(`/reservations/${id}/`, { statut });
+      // Le backend (views.py partial_update) envoie déjà l'email automatiquement
       await fetchAll();
-    } catch (e) { console.error(e); }
-    finally { setProcessing(p => { const n = {...p}; delete n[id]; return n; }); }
+      showToast(
+        statut === 'confirmée'
+          ? `✅ Réservation #${id} confirmée — email envoyé au client`
+          : `❌ Réservation #${id} annulée — email envoyé au client`,
+        statut === 'confirmée' ? 'success' : 'error'
+      );
+    } catch (e) {
+      console.error(e);
+      showToast(`⚠️ Erreur lors de l'action sur #${id}`, 'error');
+    } finally {
+      setProcessing(p => { const n = {...p}; delete n[id]; return n; });
+    }
   };
 
   const getClient  = id => clients.find(c => c.id === id);
@@ -105,14 +121,35 @@ const Confirmations = () => {
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
       <div style={{ textAlign: 'center' }}>
-        <RefreshCw size={32} color={NAVY} className="spin" style={{ marginBottom: 12 }} />
+        <RefreshCw size={32} color={NAVY} style={{ marginBottom: 12 }} />
         <div style={{ color: '#64748B', fontWeight: '600' }}>Chargement...</div>
       </div>
     </div>
   );
 
   return (
-    <div>
+    <div style={{ position: 'relative' }}>
+
+      {/* ✅ Toast notification */}
+      {toast && (
+        <div style={{
+          position: 'fixed', top: '20px', right: '24px', zIndex: 9999,
+          background: toast.type === 'success' ? '#DCFCE7' : '#FEE2E2',
+          border: `1.5px solid ${toast.type === 'success' ? '#86EFAC' : '#FECACA'}`,
+          color: toast.type === 'success' ? '#166534' : '#991B1B',
+          padding: '14px 20px', borderRadius: '12px',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          fontWeight: '700', fontSize: '14px',
+          display: 'flex', alignItems: 'center', gap: '10px',
+          maxWidth: '420px', animation: 'slideIn 0.3s ease',
+        }}>
+          {toast.type === 'success'
+            ? <CheckCircle size={18} color="#16A34A" />
+            : <XCircle size={18} color="#DC2626" />}
+          {toast.msg}
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '22px' }}>
         <h1 className="page-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -138,14 +175,14 @@ const Confirmations = () => {
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginBottom: '22px' }}>
         {[
-          { label: 'En attente total',    value: pending.length,       color: AMBER,     bg: '#FEF3DC', icon: <Clock size={18} />,        action: () => setFilter('all') },
-          { label: 'Réservations mobile', value: directPending.length, color: NAVY,      bg: '#EFF4FB', icon: <Smartphone size={18} />,    action: () => setFilter('reservation') },
-          { label: 'RDV Espèces',         value: rdvPending.length,    color: '#7C3AED', bg: '#F3EEFF', icon: <CalendarDays size={18} />,  action: () => setFilter('rdv') },
+          { label: 'En attente total',    value: pending.length,        color: AMBER,     bg: '#FEF3DC', icon: <Clock size={18} />,        key: 'all' },
+          { label: 'Réservations carte',  value: directPending.length,  color: NAVY,      bg: '#EFF4FB', icon: <Smartphone size={18} />,    key: 'reservation' },
+          { label: 'RDV Espèces',         value: rdvPending.length,     color: '#7C3AED', bg: '#F3EEFF', icon: <CalendarDays size={18} />,  key: 'rdv' },
         ].map(s => (
-          <div key={s.label} onClick={s.action}
+          <div key={s.key} onClick={() => setFilter(s.key)}
             className="card"
             style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 20px', cursor: 'pointer',
-              border: `2px solid ${filter !== 'all' && s.label.toLowerCase().includes(filter) ? s.color : 'transparent'}`,
+              border: `2px solid ${filter === s.key ? s.color : 'transparent'}`,
               transition: 'all 0.15s' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: s.bg, color: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               {s.icon}
@@ -158,16 +195,28 @@ const Confirmations = () => {
         ))}
       </div>
 
+      {/* ✅ Légende des statuts */}
+      <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '10px 16px', marginBottom: '16px', display: 'flex', gap: '20px', flexWrap: 'wrap', fontSize: '12px', color: '#64748B' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: NAVY, display: 'inline-block' }}></span>
+          <strong>En attente</strong> — paiement carte enregistré, en cours de traitement
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#7C3AED', display: 'inline-block' }}></span>
+          <strong>En attente RDV</strong> — paiement espèces, RDV fixé, confirmation manuelle requise
+        </span>
+      </div>
+
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '18px' }}>
         {[
           { key: 'all',         label: `Tous (${pending.length})` },
-          { key: 'reservation', label: `📱 Mobile (${directPending.length})` },
+          { key: 'reservation', label: `💳 Carte (${directPending.length})` },
           { key: 'rdv',         label: `📅 RDV Espèces (${rdvPending.length})` },
         ].map(t => (
           <button key={t.key} onClick={() => setFilter(t.key)}
             style={{
-              padding: '8px 18px', borderRadius: '20px', border: 'none', cursor: 'pointer',
+              padding: '8px 18px', borderRadius: '20px', cursor: 'pointer',
               fontWeight: '700', fontSize: '13px',
               background: filter === t.key ? NAVY : 'white',
               color: filter === t.key ? 'white' : '#64748B',
@@ -197,33 +246,37 @@ const Confirmations = () => {
           const client  = getClient(r.client);
           const vehicle = getVehicle(r.vehicle);
           const d       = days(r.date_debut, r.date_fin);
-          const isRdv   = r.notes?.toLowerCase().includes('rdv') || r.notes?.toLowerCase().includes('espèces');
+          const isRdv   = isRdvEspeces(r); // ✅ basé sur statut Django réel
           const proc    = processing[r.id];
+
+          // Extraire la date/heure RDV depuis les notes si disponible
+          const rdvInfo = r.notes?.match(/RDV[:\s]+([^\|]+)/i)?.[1]?.trim() || null;
 
           return (
             <div key={r.id} style={{
               background: 'white', borderRadius: '16px', overflow: 'hidden',
-              border: `2px solid ${isRdv ? '#C4B5FD' : '#FCD34D'}`,
+              border: `2px solid ${isRdv ? '#C4B5FD' : '#93C5FD'}`,
               boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
             }}>
               {/* Card header */}
               <div style={{
                 padding: '12px 20px', display: 'flex', alignItems: 'center',
                 justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px',
-                background: isRdv ? '#F5F3FF' : '#FFFBEB',
-                borderBottom: `1px solid ${isRdv ? '#DDD6FE' : '#FEF08A'}`,
+                background: isRdv ? '#F5F3FF' : '#EFF6FF',
+                borderBottom: `1px solid ${isRdv ? '#DDD6FE' : '#BFDBFE'}`,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <strong style={{ color: NAVY, fontSize: '15px' }}>Rés. #{r.id}</strong>
                   <span style={{
-                    background: isRdv ? '#EDE9FE' : '#FEF9C3',
-                    color: isRdv ? '#7C3AED' : '#92580A',
+                    background: isRdv ? '#EDE9FE' : '#DBEAFE',
+                    color: isRdv ? '#7C3AED' : NAVY,
                     padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700',
+                    display: 'flex', alignItems: 'center', gap: '5px',
                   }}>
-                    {isRdv ? '📅 RDV Espèces' : '📱 Réservation Mobile'}
+                    {isRdv ? <><CalendarDays size={11}/> RDV Espèces</> : <><CreditCard size={11}/> Paiement Carte</>}
                   </span>
                   <span style={{ background: '#FEF9C3', color: '#92580A', padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Clock size={11} /> En attente
+                    <Clock size={11} /> {isRdv ? 'En attente RDV' : 'En attente'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#64748B' }}>
@@ -252,26 +305,10 @@ const Confirmations = () => {
                         <div style={{ fontWeight: '800', fontSize: '15px' }}>{client.prenom} {client.nom}</div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12.5px', color: '#64748B' }}>
-                        {client.cin && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <CreditCard size={11} /> CIN: <strong style={{ color: '#1A2535' }}>{client.cin}</strong>
-                          </span>
-                        )}
-                        {client.telephone && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <Phone size={11} /> {client.telephone}
-                          </span>
-                        )}
-                        {client.email && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <Mail size={11} /> {client.email}
-                          </span>
-                        )}
-                        {client.adresse && (
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <MapPin size={11} /> {client.adresse}
-                          </span>
-                        )}
+                        {client.cin && <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><CreditCard size={11} /> CIN: <strong style={{ color: '#1A2535' }}>{client.cin}</strong></span>}
+                        {client.telephone && <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><Phone size={11} /> {client.telephone}</span>}
+                        {client.email && <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><Mail size={11} /> {client.email}</span>}
+                        {client.adresse && <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><MapPin size={11} /> {client.adresse}</span>}
                       </div>
                     </>
                   ) : (
@@ -287,12 +324,9 @@ const Confirmations = () => {
                   {vehicle ? (
                     <>
                       <div style={{ borderRadius: '8px', overflow: 'hidden', height: '70px', marginBottom: '8px' }}>
-                        <img
-                          src={getPhoto(vehicle)}
-                          alt={`${vehicle.marque} ${vehicle.modele}`}
+                        <img src={getPhoto(vehicle)} alt={`${vehicle.marque} ${vehicle.modele}`}
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          onError={e => { e.target.src = DEFAULT_PHOTO; }}
-                        />
+                          onError={e => { e.target.src = DEFAULT_PHOTO; }} />
                       </div>
                       <div style={{ fontWeight: '800', fontSize: '14px', color: '#1A2535' }}>{vehicle.marque} {vehicle.modele}</div>
                       <div style={{ fontSize: '12px', color: NAVY, fontWeight: '600', marginTop: '2px' }}>{vehicle.immatriculation}</div>
@@ -309,7 +343,7 @@ const Confirmations = () => {
                     <div style={{ fontSize: '10.5px', fontWeight: '800', color: AMBER, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                       <Banknote size={12} /> Financier
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '12px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '10px' }}>
                       {[
                         { label: 'TOTAL',   value: `${r.montant_total} DT`, color: NAVY,  bg: '#EFF4FB' },
                         { label: 'ACOMPTE', value: `${r.acompte} DT`,       color: AMBER, bg: '#FEF3DC' },
@@ -320,15 +354,32 @@ const Confirmations = () => {
                         </div>
                       ))}
                     </div>
-                    {r.notes && (
-                      <div style={{ background: '#F8FAFC', borderRadius: '8px', padding: '8px 10px', fontSize: '12px', color: '#64748B', marginBottom: '10px' }}>
+
+                    {/* ✅ Afficher RDV si espèces */}
+                    {isRdv && rdvInfo && (
+                      <div style={{ background: '#EDE9FE', borderRadius: '8px', padding: '8px 10px', fontSize: '12px', color: '#7C3AED', marginBottom: '8px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <CalendarDays size={12} /> RDV : {rdvInfo}
+                      </div>
+                    )}
+
+                    {/* ✅ Mode paiement badge */}
+                    <div style={{ background: '#F8FAFC', borderRadius: '8px', padding: '8px 10px', fontSize: '12px', color: '#64748B', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {isRdv
+                        ? <><Banknote size={12} /> Mode : <strong>Espèces au bureau</strong></>
+                        : <><CreditCard size={12} /> Mode : <strong>Carte bancaire</strong></>}
+                    </div>
+
+                    {r.notes && !rdvInfo && (
+                      <div style={{ background: '#F8FAFC', borderRadius: '8px', padding: '8px 10px', fontSize: '12px', color: '#64748B', marginBottom: '8px' }}>
                         📝 {r.notes}
                       </div>
                     )}
                   </div>
 
-                  {/* Action buttons */}
+                  {/* ✅ Action buttons avec label adapté au mode */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+
+                    {/* Bouton Confirmer */}
                     <button onClick={() => handleAction(r.id, 'confirmée')} disabled={!!proc}
                       style={{
                         padding: '10px', background: proc === 'confirmée' ? '#86EFAC' : GREEN,
@@ -338,8 +389,10 @@ const Confirmations = () => {
                         opacity: proc ? 0.7 : 1, transition: 'all 0.15s',
                       }}>
                       <CheckCircle size={15} />
-                      {proc === 'confirmée' ? 'Confirmation...' : '✅ Confirmer'}
+                      {proc === 'confirmée' ? 'Confirmation...' : isRdv ? '✅ Valider RDV' : '✅ Confirmer'}
                     </button>
+
+                    {/* Bouton Refuser */}
                     <button onClick={() => handleAction(r.id, 'annulée')} disabled={!!proc}
                       style={{
                         padding: '10px', background: 'white', color: RED,
@@ -349,8 +402,13 @@ const Confirmations = () => {
                         opacity: proc ? 0.7 : 1, transition: 'all 0.15s',
                       }}>
                       <XCircle size={15} />
-                      {proc === 'annulée' ? 'Annulation...' : '❌ Refuser'}
+                      {proc === 'annulée' ? 'Annulation...' : isRdv ? '❌ Refuser RDV' : '❌ Refuser'}
                     </button>
+
+                    {/* ✅ Info email */}
+                    <div style={{ fontSize: '10px', color: '#94A3B8', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                      <Mail size={10} /> Email automatique envoyé au client
+                    </div>
                   </div>
                 </div>
               </div>

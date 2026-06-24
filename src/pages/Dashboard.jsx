@@ -56,13 +56,15 @@ export default function Dashboard() {
   const today = new Date(); today.setHours(0,0,0,0);
 
   const activeVeh = vehicles.filter(v=>!SOLD.includes(v.statut));
-  const aVendre   = activeVeh.filter(v=>getAge(v.date_acquisition)>=3.5);
 
-  // ✅ AUJOURD'HUI SEULEMENT
-  const aInspecter = reservations.filter(r=>{
-    if(r.statut!=='confirmée'||r.inspection_retour_faite) return false;
-    const f=new Date(r.date_fin);f.setHours(0,0,0,0);
-    return f.getTime()===today.getTime();
+  // ✅ FIX 1 — "À vendre" = statut explicitement a_vendre (pas calcul d'âge)
+  const aVendre = vehicles.filter(v => v.statut === 'a_vendre');
+
+  // ✅ FIX 2 — Inspection retour : confirmée + date_fin <= aujourd'hui + pas encore inspectée
+  const aInspecter = reservations.filter(r => {
+    if (r.statut !== 'confirmée' || r.inspection_retour_faite) return false;
+    const f = new Date(r.date_fin); f.setHours(0,0,0,0);
+    return f.getTime() <= today.getTime(); // ← <= au lieu de ===
   });
 
   const totalRevenus   = payments.filter(p=>p.statut==='payé').reduce((s,p)=>s+parseFloat(p.montant),0);
@@ -235,7 +237,7 @@ export default function Dashboard() {
     </div>
   );
 
-  // ── STAT CARDS — Option B: fond teinté léger + icône navy carré
+  // ── STAT CARDS
   const statCards = [
     {
       label:'Véhicules actifs',
@@ -246,14 +248,15 @@ export default function Dashboard() {
       valueColor: NAVY,
     },
     {
-      label:'À renouveler',
+      // ✅ FIX — "À vendre" = statut a_vendre explicite, pas calcul âge
+      label:'À vendre',
       value: aVendre.length,
-      sub: 'Dépassé 3.5 ans',
+      sub: 'Statut à vendre',
       icon: <Tag size={18}/>,
-      iconBg: aVendre.length > 0 ? RED : GREEN,
-      cardBg: aVendre.length > 0 ? '#FFF5F5' : '#F0FFF4',
-      cardBorder: aVendre.length > 0 ? '#FECACA' : '#86EFAC',
-      valueColor: aVendre.length > 0 ? RED : GREEN,
+      iconBg: aVendre.length > 0 ? AMBER : GREEN,
+      cardBg: aVendre.length > 0 ? '#FFFBEB' : '#F0FFF4',
+      cardBorder: aVendre.length > 0 ? '#FCD34D' : '#86EFAC',
+      valueColor: aVendre.length > 0 ? AMBER : GREEN,
     },
     {
       label:'Clients',
@@ -290,9 +293,10 @@ export default function Dashboard() {
       valueColor: totalAccidents > 0 ? RED : GREEN,
     },
     {
+      // ✅ FIX — date_fin <= today (pas seulement today exactement)
       label:'À inspecter',
       value: aInspecter.length,
-      sub: "Aujourd'hui",
+      sub: aInspecter.length > 0 ? 'Retours en attente' : 'Aucun en attente',
       icon: <ClipboardList size={18}/>,
       iconBg: aInspecter.length > 0 ? PURPLE : GREEN,
       cardBg: aInspecter.length > 0 ? '#FAF5FF' : '#F0FFF4',
@@ -315,7 +319,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── STAT CARDS — Option B */}
+      {/* ── STAT CARDS */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'12px',marginBottom:'28px'}}>
         {statCards.map((s,i)=>(
           <div key={i}
@@ -331,29 +335,20 @@ export default function Dashboard() {
             onMouseEnter={e=>e.currentTarget.style.transform='translateY(-2px)'}
             onMouseLeave={e=>e.currentTarget.style.transform='translateY(0)'}
           >
-            {/* URGENT badge */}
             {s.urgent && (
               <div style={{position:'absolute',top:'-1px',left:'50%',transform:'translateX(-50%)',background:PURPLE,color:'white',fontSize:'8.5px',padding:'1px 8px',borderRadius:'0 0 6px 6px',fontWeight:'700',letterSpacing:'0.4px',whiteSpace:'nowrap'}}>
                 URGENT
               </div>
             )}
-
-            {/* Icon square */}
             <div style={{width:'32px',height:'32px',background:s.iconBg,borderRadius:'8px',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:'10px',marginTop:s.urgent?'8px':'0',color:'white',flexShrink:0}}>
               {s.icon}
             </div>
-
-            {/* Value */}
             <div style={{fontSize: String(s.value).length > 7 ? '15px' : '22px', fontWeight:'700',color:s.valueColor,lineHeight:1,marginBottom:'4px'}}>
               {s.value}
             </div>
-
-            {/* Label */}
             <div style={{fontSize:'11px',fontWeight:'600',color:'#475569',marginBottom:'2px'}}>
               {s.label}
             </div>
-
-            {/* Sub */}
             <div style={{fontSize:'10px',color:'#94A3B8'}}>
               {s.sub}
             </div>
@@ -361,10 +356,10 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* ── ALERTS — plus grandes et distinctes */}
+      {/* ── ALERTS */}
       <div style={{display:'flex',flexDirection:'column',gap:'12px',marginBottom:'24px'}}>
 
-        {/* Inspection urgente */}
+        {/* ✅ Inspection retour — date_fin <= today */}
         {aInspecter.length > 0 && (
           <div style={{
             background:'linear-gradient(135deg, #4C1D95 0%, #6D28D9 100%)',
@@ -380,10 +375,10 @@ export default function Dashboard() {
               </div>
               <div style={{flex:1}}>
                 <div style={{fontWeight:'900',fontSize:'17px',color:'white',marginBottom:'3px'}}>
-                  🔴 {aInspecter.length} inspection{aInspecter.length>1?'s':''} à effectuer aujourd'hui
+                  🔴 {aInspecter.length} inspection{aInspecter.length>1?'s':''} de retour en attente
                 </div>
                 <div style={{fontSize:'13px',color:'rgba(255,255,255,0.72)'}}>
-                  Ces réservations se terminent ce jour — inspection obligatoire avant clôture
+                  Réservations terminées — inspection obligatoire avant clôture
                 </div>
               </div>
             </div>
@@ -391,6 +386,8 @@ export default function Dashboard() {
               {aInspecter.map(r=>{
                 const cl=clients.find(c=>c.id===r.client);
                 const vh=vehicles.find(v=>v.id===r.vehicle);
+                const f=new Date(r.date_fin);
+                const isOverdue = f.getTime() < today.getTime();
                 return (
                   <div key={r.id} style={{background:'rgba(255,255,255,0.15)',backdropFilter:'blur(8px)',borderRadius:'10px',padding:'10px 16px',color:'white',fontSize:'13px',fontWeight:'600',border:'1px solid rgba(255,255,255,0.25)',display:'flex',alignItems:'center',gap:'10px'}}>
                     <Car size={16} color="rgba(255,255,255,0.8)"/>
@@ -399,6 +396,11 @@ export default function Dashboard() {
                     <span>{vh?.marque} {vh?.modele}</span>
                     <span style={{color:'rgba(255,255,255,0.75)'}}>·</span>
                     <span style={{color:'rgba(255,255,255,0.75)'}}>{cl?.prenom} {cl?.nom}</span>
+                    {isOverdue && (
+                      <span style={{background:'rgba(220,38,38,0.7)',padding:'2px 8px',borderRadius:'6px',fontSize:'11px',fontWeight:'800'}}>
+                        En retard
+                      </span>
+                    )}
                   </div>
                 );
               })}
@@ -406,7 +408,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* À renouveler */}
+        {/* ✅ À vendre — statut explicite a_vendre */}
         {aVendre.length > 0 && (
           <div style={{
             background:'linear-gradient(135deg, #92400E 0%, #D97706 100%)',
@@ -419,10 +421,10 @@ export default function Dashboard() {
               </div>
               <div style={{flex:1}}>
                 <div style={{fontWeight:'900',fontSize:'17px',color:'white',marginBottom:'3px'}}>
-                  🔶 {aVendre.length} véhicule{aVendre.length>1?'s':''} à renouveler
+                  🔶 {aVendre.length} véhicule{aVendre.length>1?'s':''} mis en vente
                 </div>
                 <div style={{fontSize:'13px',color:'rgba(255,255,255,0.75)'}}>
-                  Dépassé 3.5 ans d'acquisition
+                  Statut "à vendre" — en attente de cession
                 </div>
               </div>
               <button onClick={()=>setChart('vendre')}
@@ -499,7 +501,7 @@ export default function Dashboard() {
               ...v,
               nbRes:reservations.filter(r=>r.vehicle===v.id).length,
               nbAcc:reservations.filter(r=>r.vehicle===v.id&&hasDamage(r)).length,
-              isOld:aVendre.some(x=>x.id===v.id),
+              isAVendre: v.statut === 'a_vendre',
             })).sort((a,b)=>b.nbRes-a.nbRes).slice(0,7).map((v,i)=>{
               const maxRes=Math.max(...vehicles.map(x=>reservations.filter(r=>r.vehicle===x.id).length),1);
               return (
@@ -510,10 +512,10 @@ export default function Dashboard() {
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{display:'flex',alignItems:'center',gap:'6px',marginBottom:'4px'}}>
                       <span style={{fontWeight:'700',fontSize:'13px',color:'#0F172A'}}>{v.marque} {v.modele}</span>
-                      {v.isOld&&<span style={{fontSize:'10px',background:'#FEF3DC',color:AMBER,padding:'1px 6px',borderRadius:'4px',fontWeight:'700'}}>Renouveler</span>}
+                      {v.isAVendre&&<span style={{fontSize:'10px',background:'#FFFBEB',color:AMBER,padding:'1px 6px',borderRadius:'4px',fontWeight:'700'}}>À vendre</span>}
                     </div>
                     <div style={{background:'#F1F5F9',borderRadius:'4px',height:'5px'}}>
-                      <div style={{width:`${(v.nbRes/maxRes)*100}%`,height:'100%',background:v.isOld?AMBER:NAVY,borderRadius:'4px'}}/>
+                      <div style={{width:`${(v.nbRes/maxRes)*100}%`,height:'100%',background:v.isAVendre?AMBER:NAVY,borderRadius:'4px'}}/>
                     </div>
                   </div>
                   <div style={{display:'flex',gap:'6px',flexShrink:0}}>
