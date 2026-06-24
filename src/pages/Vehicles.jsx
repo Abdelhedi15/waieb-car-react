@@ -1118,3 +1118,132 @@ const Vehicles = () => {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth:'700px' }}>
             <h2>{editingVeh ? <><Pencil size={17}/> Modifier le véhicule</> : <><Plus size={17}/> Ajouter un véhicule</>}</h2>
+            <div style={{ display:'flex', gap:'4px', marginBottom:'20px', background:'#F8FAFC', borderRadius:'10px', padding:'4px' }}>
+              {[{key:'infos',label:'Infos'},{key:'tech',label:'Technique'},{key:'tarifs',label:'Tarifs'},{key:'assurance',label:'Assurance'},{key:'photo',label:'Photo'}].map(t => (
+                <button key={t.key} onClick={() => setActiveTab(t.key)}
+                  style={{ flex:1, padding:'7px', border:'none', borderRadius:'8px', cursor:'pointer',
+                    fontWeight:'700', fontSize:'12.5px',
+                    background: activeTab === t.key ? NAVY : 'transparent',
+                    color: activeTab === t.key ? 'white' : '#64748B' }}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <form onSubmit={handleSubmit}>
+              {activeTab === 'infos' && (
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
+                  <div className="form-group"><label>Marque *</label><input value={form.marque} onChange={e => setForm({...form,marque:e.target.value})} required/></div>
+                  <div className="form-group"><label>Modèle *</label><input value={form.modele} onChange={e => setForm({...form,modele:e.target.value})} required/></div>
+                  <div className="form-group"><label>Immatriculation *</label><input value={form.immatriculation} onChange={e => setForm({...form,immatriculation:e.target.value})} required/></div>
+                  <div className="form-group"><label>Année</label><input type="number" value={form.annee} onChange={e => setForm({...form,annee:e.target.value})}/></div>
+                  <div className="form-group"><label>Couleur</label><input value={form.couleur} onChange={e => setForm({...form,couleur:e.target.value})}/></div>
+                  <div className="form-group"><label>Statut</label>
+                    <select value={form.statut} onChange={e => setForm({...form,statut:e.target.value})}>
+                      <option value="disponible">Disponible</option>
+                      <option value="loué">Loué</option>
+                      <option value="maintenance">Maintenance</option>
+                      <option value="a_vendre">À vendre</option>
+                      <option value="vendu">Vendu</option>
+                      <option value="hors service">Hors service</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ gridColumn:'1/-1' }}><label>État carrosserie</label>
+                    <select value={form.etat_carrosserie} onChange={e => setForm({...form,etat_carrosserie:e.target.value})}>
+                      <option value="excellent">Excellent état</option>
+                      <option value="defauts">Défauts mineurs</option>
+                      <option value="dommages">Dommages visibles</option>
+                      <option value="sinistre">Sinistre déclaré</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+              {activeTab === 'tech' && (
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
+                  <div className="form-group"><label>Type carburant</label>
+                    <select value={form.type_carburant} onChange={e => setForm({...form,type_carburant:e.target.value})}>
+                      <option value="essence">Essence</option>
+                      <option value="diesel">Diesel</option>
+                      <option value="hybride">Hybride</option>
+                      <option value="électrique">Électrique</option>
+                    </select>
+                  </div>
+                  <div className="form-group"><label>Nombre de places</label><input type="number" value={form.nombre_places} onChange={e => setForm({...form,nombre_places:e.target.value})} min="2" max="9"/></div>
+                  <div className="form-group"><label>Kilométrage</label><input type="number" value={form.kilometrage} onChange={e => setForm({...form,kilometrage:e.target.value})}/></div>
+                  <div className="form-group"><label>Date révision</label><input type="date" value={form.date_revision||''} onChange={e => setForm({...form,date_revision:e.target.value})}/></div>
+                  <div className="form-group"><label>Date CT</label><input type="date" value={form.date_ct||''} onChange={e => setForm({...form,date_ct:e.target.value})}/></div>
+                </div>
+              )}
+              {activeTab === 'tarifs' && (
+                <div>
+                  <div style={{ marginBottom:'14px' }}>
+                    <div className="form-group">
+                      <label>Prix journalier de base (DT) *</label>
+                      <input type="number" value={form.prix_journalier} onChange={e => setForm({...form,prix_journalier:e.target.value})} required step="0.01"/>
+                    </div>
+                  </div>
+                  <button type="button" onClick={suggestPrices}
+                    style={{ marginBottom:'14px', padding:'8px 14px', background:'#EFF4FB', color:NAVY,
+                      border:'1.5px solid #DDE3ED', borderRadius:'8px', cursor:'pointer', fontWeight:'700', fontSize:'12.5px' }}>
+                    Suggérer prix saisonniers automatiquement
+                  </button>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
+                    <div className="form-group" style={{ background:'#FEF9C3', padding:'12px', borderRadius:'10px', border:'1px solid #FEF08A' }}>
+                      <label style={{ color:'#92580A' }}>Prix Haute saison +25% (Juin/Sep)</label>
+                      <input type="number" value={form.prix_haute_saison} onChange={e => setForm({...form,prix_haute_saison:e.target.value})} step="0.01" style={{ marginTop:'6px' }}/>
+                    </div>
+                    <div className="form-group" style={{ background:'#FEE2E2', padding:'12px', borderRadius:'10px', border:'1px solid #FECACA' }}>
+                      <label style={{ color:'#991B1B' }}>Prix Très haute saison +50% (Juil/Août)</label>
+                      <input type="number" value={form.prix_tres_haute_saison} onChange={e => setForm({...form,prix_tres_haute_saison:e.target.value})} step="0.01" style={{ marginTop:'6px' }}/>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {activeTab === 'assurance' && (
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px' }}>
+                  <div className="form-group"><label>Date assurance</label><input type="date" value={form.date_assurance||''} onChange={e => setForm({...form,date_assurance:e.target.value})}/></div>
+                  <div className="form-group"><label>Numéro police</label><input value={form.numero_police||''} onChange={e => setForm({...form,numero_police:e.target.value})}/></div>
+                  <div className="form-group" style={{ gridColumn:'1/-1' }}><label>Notes</label><textarea rows={3} value={form.notes||''} onChange={e => setForm({...form,notes:e.target.value})} style={{ resize:'vertical' }}/></div>
+                </div>
+              )}
+              {activeTab === 'photo' && (
+                <div>
+                  {editingVeh?.photo && (
+                    <div style={{ marginBottom:'14px' }}>
+                      <img src={getCarPhoto(editingVeh)} alt="actuelle" style={{ width:'100%', height:'180px', objectFit:'cover', borderRadius:'10px' }}/>
+                      <p style={{ fontSize:'12px', color:'#64748B', marginTop:'6px' }}>Photo actuelle</p>
+                    </div>
+                  )}
+                  <div className="form-group">
+                    <label>Choisir une nouvelle photo</label>
+                    <input type="file" accept="image/*" onChange={e => setPhotoFile(e.target.files[0])}/>
+                  </div>
+                  {photoFile && (
+                    <img src={URL.createObjectURL(photoFile)} alt="aperçu" style={{ width:'100%', height:'160px', objectFit:'cover', borderRadius:'10px', marginTop:'10px' }}/>
+                  )}
+                </div>
+              )}
+              <div className="modal-actions">
+                <button type="button" className="btn btn-outline" onClick={() => setShowModal(false)}>Annuler</button>
+                <button type="submit" className="btn btn-primary" disabled={loading}>
+                  {loading ? 'Enregistrement...' : (editingVeh ? 'Modifier' : 'Ajouter')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Rapport État */}
+      {rapportVeh && (
+        <RapportEtatModal
+          vehicle={rapportVeh}
+          reservations={reservations}
+          onClose={() => setRapportVeh(null)}
+          onDommageSignale={fetchAll}
+        />
+      )}
+    </div>
+  );
+};
+
+export default Vehicles;
