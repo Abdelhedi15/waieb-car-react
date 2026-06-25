@@ -98,16 +98,15 @@ const EMPTY_FORM = {
   vehicule_remplace:'', raison_remplacement:'',
 };
 
+// ✅ FIX — seulement aujourd'hui (date_fin === today)
 const canInspect = (r) => {
   if (!r.date_fin) return false;
   if (r.statut==='annulée'||r.inspection_retour_faite) return false;
   const today=new Date();today.setHours(0,0,0,0);
   const fin=new Date(r.date_fin);fin.setHours(0,0,0,0);
-  const diff=Math.round((fin-today)/86400000);
-  return diff===0||diff===-1;
+  return fin.getTime() === today.getTime();
 };
 
-// ✅ Check doublon client (même client + dates chevauchantes)
 const checkClientConflict = (clientId, dateDebut, dateFin, reservations, excludeId=null) => {
   if (!clientId||!dateDebut||!dateFin) return null;
   return reservations.find(r => {
@@ -118,7 +117,6 @@ const checkClientConflict = (clientId, dateDebut, dateFin, reservations, exclude
   }) || null;
 };
 
-// ✅ Check doublon véhicule (même véhicule + dates chevauchantes)
 const checkVehicleConflict = (vehicleId, dateDebut, dateFin, reservations, excludeId=null) => {
   if (!vehicleId||!dateDebut||!dateFin) return null;
   return reservations.find(r => {
@@ -155,7 +153,6 @@ const MiniPagination = ({ currentPage, totalPages, onPageChange, totalItems, per
   );
 };
 
-// ─────────────────────────────────────────────────────────────
 const Reservations = () => {
   const [reservations,           setReservations]           = useState([]);
   const [clients,                setClients]                = useState([]);
@@ -178,10 +175,8 @@ const Reservations = () => {
   const [vehicleSort,            setVehicleSort]            = useState('prix_asc');
   const [inspectionRes,          setInspectionRes]          = useState(null);
   const [showInspection,         setShowInspection]         = useState(false);
-
-  // ✅ États pour warnings doublons
-  const [clientConflict,  setClientConflict]  = useState(null);
-  const [vehicleConflict, setVehicleConflict] = useState(null);
+  const [clientConflict,         setClientConflict]         = useState(null);
+  const [vehicleConflict,        setVehicleConflict]        = useState(null);
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -192,13 +187,10 @@ const Reservations = () => {
     } catch(err) { console.error(err); }
   };
 
-  // ✅ Recalcule les conflits à chaque changement de form
   const updateConflicts = (updatedForm, allReservations) => {
     const excl = editingRes?.id || null;
-    const cc = checkClientConflict(updatedForm.client, updatedForm.date_debut, updatedForm.date_fin, allReservations, excl);
-    const vc = checkVehicleConflict(updatedForm.vehicle, updatedForm.date_debut, updatedForm.date_fin, allReservations, excl);
-    setClientConflict(cc);
-    setVehicleConflict(vc);
+    setClientConflict(checkClientConflict(updatedForm.client, updatedForm.date_debut, updatedForm.date_fin, allReservations, excl));
+    setVehicleConflict(checkVehicleConflict(updatedForm.vehicle, updatedForm.date_debut, updatedForm.date_fin, allReservations, excl));
   };
 
   const setFormAndCheck = (newForm) => {
@@ -300,18 +292,14 @@ const Reservations = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // ✅ Blocage doublon CLIENT
     if (clientConflict) {
-      alert(`❌ Ce client a déjà une réservation active du ${clientConflict.date_debut} au ${clientConflict.date_fin} (Rés. #${clientConflict.id}).\nUn client ne peut pas avoir deux locations simultanées.`);
+      alert(`❌ Ce client a déjà une réservation active du ${clientConflict.date_debut} au ${clientConflict.date_fin} (Rés. #${clientConflict.id}).`);
       return;
     }
-    // ✅ Blocage doublon VÉHICULE
     if (vehicleConflict) {
-      alert(`❌ Ce véhicule est déjà réservé du ${vehicleConflict.date_debut} au ${vehicleConflict.date_fin} (Rés. #${vehicleConflict.id}).\nVeuillez choisir un autre véhicule ou modifier les dates.`);
+      alert(`❌ Ce véhicule est déjà réservé du ${vehicleConflict.date_debut} au ${vehicleConflict.date_fin} (Rés. #${vehicleConflict.id}).`);
       return;
     }
-
     if(!form.caution||parseFloat(form.caution)<=0){alert('La caution est obligatoire.');return;}
     const days=calcDays(form.date_debut,form.date_fin);
     const rule=getAcompteRule(days);
@@ -331,8 +319,7 @@ const Reservations = () => {
       setClientConflict(null); setVehicleConflict(null);
     } catch(err) {
       const errData = err.response?.data;
-      const msg = errData?.error || errData?.detail || JSON.stringify(errData);
-      alert('❌ ' + msg);
+      alert('❌ ' + (errData?.error || errData?.detail || JSON.stringify(errData)));
     } finally { setLoading(false); }
   };
 
@@ -341,8 +328,7 @@ const Reservations = () => {
     try {
       const resp=await api.get(`/vehicles/available/?date_debut=${res.date_debut}&date_fin=${res.date_fin}`);
       const prixRef=parseFloat(vehicles.find(v=>v.id===res.vehicle)?.prix_journalier||0);
-      const similaires=resp.data.filter(v=>v.id!==res.vehicle&&parseFloat(v.prix_journalier)>=prixRef*0.7&&parseFloat(v.prix_journalier)<=prixRef*1.3);
-      setVehiculesRemplacement(similaires);
+      setVehiculesRemplacement(resp.data.filter(v=>v.id!==res.vehicle&&parseFloat(v.prix_journalier)>=prixRef*0.7&&parseFloat(v.prix_journalier)<=prixRef*1.3));
     } catch{setVehiculesRemplacement([]);}
     setShowRemplacementModal(true);
   };
@@ -362,8 +348,10 @@ const Reservations = () => {
   const acompteInvalid=form.acompte!==''&&acompteVal<parseFloat(acompteMin);
   const acompteValid=acompteVal>=parseFloat(acompteMin)&&form.acompte!=='';
   const saisonInfo=getSaisonInfo(form.date_debut);
-
   const hasConflict = !!(clientConflict || vehicleConflict);
+
+  // ✅ Véhicules à inspecter aujourd'hui seulement
+  const aInspecterAujourdhui = reservations.filter(r => canInspect(r));
 
   return (
     <div>
@@ -421,13 +409,15 @@ const Reservations = () => {
         ))}
       </div>
 
-      {/* Inspection badge */}
-      {reservations.filter(r=>canInspect(r)).length>0&&(
+      {/* ✅ Inspection badge — aujourd'hui uniquement */}
+      {aInspecterAujourdhui.length > 0 && (
         <div style={{background:'#F0FFF4',border:'2px solid #86EFAC',borderRadius:'12px',padding:'12px 16px',marginBottom:'20px',display:'flex',alignItems:'center',gap:'10px',flexWrap:'wrap'}}>
           <ClipboardCheck size={18} color={GREEN}/>
-          <span style={{fontWeight:'700',color:'#166534',fontSize:'13.5px'}}>{reservations.filter(r=>canInspect(r)).length} réservation(s) à inspecter aujourd'hui ou hier</span>
+          <span style={{fontWeight:'700',color:'#166534',fontSize:'13.5px'}}>
+            {aInspecterAujourdhui.length} réservation(s) à inspecter aujourd'hui
+          </span>
           <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
-            {reservations.filter(r=>canInspect(r)).map(r=>{
+            {aInspecterAujourdhui.map(r=>{
               const client=clients.find(c=>c.id===r.client), vehicle=vehicles.find(v=>v.id===r.vehicle);
               return(
                 <button key={r.id} onClick={()=>openInspection(r)}
@@ -584,7 +574,6 @@ const Reservations = () => {
             <h2 style={{display:'flex',alignItems:'center',gap:'9px'}}>
               {editingRes?<><ChevronRight size={18}/> Modifier la Réservation</>:<><PlusCircle size={18}/> Nouvelle Réservation</>}
             </h2>
-
             {fromCalendar&&form.vehicle&&form.date_debut&&(
               <div style={{background:'#EFF6FF',border:'1px solid #BFDBFE',borderRadius:'8px',padding:'10px 14px',marginBottom:'14px',fontSize:'13px',color:NAVY,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                 <span style={{display:'flex',alignItems:'center',gap:'6px'}}><CheckCircle size={14}/> Dates pré-remplies depuis le calendrier</span>
@@ -596,41 +585,29 @@ const Reservations = () => {
                 {saisonInfo.label} <span style={{opacity:.7}}>({saisonInfo.pct})</span>
               </div>
             )}
-
-            {/* ✅ Warning client doublon */}
             {clientConflict&&(
               <div style={{background:'#FEF9C3',border:'2px solid #F59E0B',borderRadius:'10px',padding:'12px 16px',marginBottom:'14px',display:'flex',alignItems:'flex-start',gap:'10px'}}>
                 <AlertTriangle size={18} color="#D97706" style={{flexShrink:0,marginTop:'2px'}}/>
                 <div>
                   <div style={{fontWeight:'800',color:'#92580A',fontSize:'13px',marginBottom:'2px'}}>⚠️ Client avec réservation simultanée</div>
-                  <div style={{fontSize:'12px',color:'#92580A'}}>
-                    Ce client a déjà une réservation active du <strong>{clientConflict.date_debut}</strong> au <strong>{clientConflict.date_fin}</strong> (Rés. #{clientConflict.id}).
-                    Un client ne peut pas avoir deux locations en même temps.
-                  </div>
+                  <div style={{fontSize:'12px',color:'#92580A'}}>Ce client a déjà une réservation active du <strong>{clientConflict.date_debut}</strong> au <strong>{clientConflict.date_fin}</strong> (Rés. #{clientConflict.id}).</div>
                 </div>
               </div>
             )}
-
-            {/* ✅ Warning véhicule doublon */}
             {vehicleConflict&&(
               <div style={{background:'#FEE2E2',border:'2px solid #F87171',borderRadius:'10px',padding:'12px 16px',marginBottom:'14px',display:'flex',alignItems:'flex-start',gap:'10px'}}>
                 <AlertTriangle size={18} color={RED} style={{flexShrink:0,marginTop:'2px'}}/>
                 <div>
                   <div style={{fontWeight:'800',color:RED,fontSize:'13px',marginBottom:'2px'}}>🚫 Véhicule déjà réservé</div>
-                  <div style={{fontSize:'12px',color:RED}}>
-                    Ce véhicule est réservé du <strong>{vehicleConflict.date_debut}</strong> au <strong>{vehicleConflict.date_fin}</strong> (Rés. #{vehicleConflict.id}).
-                    Choisissez un autre véhicule ou modifiez les dates.
-                  </div>
+                  <div style={{fontSize:'12px',color:RED}}>Ce véhicule est réservé du <strong>{vehicleConflict.date_debut}</strong> au <strong>{vehicleConflict.date_fin}</strong> (Rés. #{vehicleConflict.id}).</div>
                 </div>
               </div>
             )}
-
             <form onSubmit={handleSubmit}>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px'}}>
                 <div className="form-group">
                   <label>Client <span style={{color:RED}}>*</span></label>
-                  <select value={form.client}
-                    onChange={e=>{const nf={...form,client:e.target.value};setFormAndCheck(nf);}} required>
+                  <select value={form.client} onChange={e=>setFormAndCheck({...form,client:e.target.value})} required>
                     <option value="">Sélectionner un client</option>
                     {clients.map(c=><option key={c.id} value={c.id}>{c.prenom} {c.nom}</option>)}
                   </select>
@@ -643,8 +620,7 @@ const Reservations = () => {
                         <div style={{fontWeight:'800',color:GREEN,fontSize:'13px'}}>{getPrixSaison(selectedVehicle,form.date_debut).toFixed(2)} DT/j</div>
                         <input type="hidden" value={form.vehicle}/>
                       </div>
-                    : <select value={form.vehicle}
-                        onChange={e=>{const nv=e.target.value;const nf={...form,vehicle:nv};setFormAndCheck(nf);calcTotal(form.date_debut,form.date_fin,nv);}} required>
+                    : <select value={form.vehicle} onChange={e=>{const nv=e.target.value;const nf={...form,vehicle:nv};setFormAndCheck(nf);calcTotal(form.date_debut,form.date_fin,nv);}} required>
                         <option value="">Sélectionner un véhicule</option>
                         {vehicles.map(v=><option key={v.id} value={v.id}>{v.marque} {v.modele} — {v.immatriculation} ({v.prix_journalier} DT/j)</option>)}
                       </select>
@@ -652,13 +628,11 @@ const Reservations = () => {
                 </div>
                 <div className="form-group">
                   <label>Date début <span style={{color:RED}}>*</span></label>
-                  <input type="date" value={form.date_debut}
-                    onChange={e=>{const d=e.target.value;const nf={...form,date_debut:d};setFormAndCheck(nf);calcTotal(d,form.date_fin,form.vehicle);}} required/>
+                  <input type="date" value={form.date_debut} onChange={e=>{const d=e.target.value;const nf={...form,date_debut:d};setFormAndCheck(nf);calcTotal(d,form.date_fin,form.vehicle);}} required/>
                 </div>
                 <div className="form-group">
                   <label>Date fin <span style={{color:RED}}>*</span></label>
-                  <input type="date" value={form.date_fin}
-                    onChange={e=>{const d=e.target.value;const nf={...form,date_fin:d};setFormAndCheck(nf);calcTotal(form.date_debut,d,form.vehicle);}} required/>
+                  <input type="date" value={form.date_fin} onChange={e=>{const d=e.target.value;const nf={...form,date_fin:d};setFormAndCheck(nf);calcTotal(form.date_debut,d,form.vehicle);}} required/>
                 </div>
                 {form.montant_total&&(
                   <div style={{gridColumn:'1 / -1',background:NAVY,color:'white',borderRadius:'10px',padding:'12px 16px',textAlign:'center'}}>
@@ -672,9 +646,8 @@ const Reservations = () => {
                   <input type="number" value={form.montant_total} onChange={e=>setForm({...form,montant_total:e.target.value})} placeholder="Calculé automatiquement" style={{background:'#F0FFF4',color:GREEN,fontWeight:'700'}}/>
                 </div>
                 <div className="form-group">
-                  <label>
-                    Acompte (DT) <span style={{color:RED}}>*</span>
-                    {form.montant_total&&<span style={{color:'#64748B',fontSize:'10.5px',marginLeft:'6px',fontWeight:'500',textTransform:'none'}}>min. {acompteMin} DT ({activeRule.pct}% / {activeRule.label})</span>}
+                  <label>Acompte (DT) <span style={{color:RED}}>*</span>
+                    {form.montant_total&&<span style={{color:'#64748B',fontSize:'10.5px',marginLeft:'6px',fontWeight:'500'}}>min. {acompteMin} DT ({activeRule.pct}% / {activeRule.label})</span>}
                   </label>
                   <input type="number" value={form.acompte} onChange={e=>setForm({...form,acompte:e.target.value})}
                     placeholder={`Minimum ${acompteMin} DT`} min={acompteMin}
@@ -683,8 +656,7 @@ const Reservations = () => {
                   {acompteValid&&form.montant_total&&<div style={{color:GREEN,fontSize:'11.5px',fontWeight:'600',display:'flex',alignItems:'center',gap:'4px'}}><CheckCircle size={12}/> Restant: {(parseFloat(form.montant_total)-acompteVal).toFixed(2)} DT</div>}
                 </div>
                 <div className="form-group">
-                  <label style={{display:'flex',alignItems:'center',gap:'6px'}}>
-                    Caution (DT) <span style={{color:RED}}>*</span>
+                  <label style={{display:'flex',alignItems:'center',gap:'6px'}}>Caution (DT) <span style={{color:RED}}>*</span>
                     <span style={{background:'#FEF3DC',color:'#92580A',fontSize:'10px',padding:'1px 7px',borderRadius:'10px',fontWeight:'700'}}>Obligatoire</span>
                   </label>
                   <input type="number" value={form.caution} onChange={e=>setForm({...form,caution:e.target.value})}
@@ -708,10 +680,9 @@ const Reservations = () => {
               </div>
               <div className="modal-actions">
                 <button type="button" className="btn btn-outline" onClick={()=>setShowModal(false)}>Annuler</button>
-                {/* ✅ Désactivé si conflit OU acompte invalide */}
                 <button type="submit" className="btn btn-primary"
                   disabled={loading||hasConflict||acompteInvalid||!form.acompte||!form.caution||parseFloat(form.caution)<=0}
-                  style={{opacity:hasConflict?0.5:1, cursor:hasConflict?'not-allowed':'pointer'}}>
+                  style={{opacity:hasConflict?0.5:1,cursor:hasConflict?'not-allowed':'pointer'}}>
                   {loading?'Enregistrement...':(editingRes?'Modifier':'Réserver')}
                 </button>
               </div>
