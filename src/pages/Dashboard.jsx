@@ -51,14 +51,14 @@ export default function Dashboard() {
 
   const activeVeh = vehicles.filter(v=>!SOLD.includes(v.statut));
   const aVendre   = vehicles.filter(v => v.statut === 'a_vendre');
+  // Véhicules >= 3.5 ans pas encore marqués à vendre (à renouveler)
+  const aRenouveler = vehicles.filter(v => !['a_vendre','vendu'].includes(v.statut) && getAge(v.date_acquisition) >= 3.5);
 
-  // ✅ Inspection — seulement hier et aujourd'hui (fenêtre 2 jours)
-  const hier = new Date(today); hier.setDate(hier.getDate() - 1);
-
+  // ✅ Inspection — SEULEMENT le jour de fin (date_fin === today)
   const aInspecter = reservations.filter(r => {
     if (r.statut !== 'confirmée' || r.inspection_retour_faite) return false;
     const f = new Date(r.date_fin); f.setHours(0,0,0,0);
-    return f.getTime() >= hier.getTime() && f.getTime() <= today.getTime();
+    return f.getTime() === today.getTime();
   });
 
   const totalRevenus   = payments.filter(p=>p.statut==='payé').reduce((s,p)=>s+parseFloat(p.montant),0);
@@ -74,11 +74,11 @@ export default function Dashboard() {
       const f=new Date(r.date_fin); f.setHours(0,0,0,0);
       return f.getFullYear()===yr && f.getMonth()===i;
     });
-    // Réservations terminées ce mois sans inspection (fenêtre hier-today)
+    // Réservations avec date_fin aujourd'hui sans inspection
     const inspAttente = reservations.filter(r=>{
       if(r.statut!=='confirmée'||r.inspection_retour_faite) return false;
       const f=new Date(r.date_fin); f.setHours(0,0,0,0);
-      return f.getFullYear()===yr && f.getMonth()===i && f>=hier && f<=today;
+      return f.getFullYear()===yr && f.getMonth()===i && f.getTime()===today.getTime();
     });
     return {
       mois:m,
@@ -105,8 +105,8 @@ export default function Dashboard() {
     accidents:reservations.filter(r=>r.client===c.id&&hasDamage(r)).length,
   })).filter(c=>c.reservations>0).sort((a,b)=>b.reservations-a.reservations).slice(0,8);
 
-  // Véhicules à vendre = statut a_vendre explicite
-  const vendreData = vehicles.filter(v=>v.statut==='a_vendre').map(v=>({
+  // Véhicules à renouveler = statut a_vendre OU âge >= 3.5 ans
+  const vendreData = vehicles.filter(v=>v.statut==='a_vendre'||getAge(v.date_acquisition)>=3.5).map(v=>({
     name:`${v.marque} ${v.modele}`.substring(0,14),
     age: parseFloat(getAge(v.date_acquisition).toFixed(1)),
   }));
@@ -297,12 +297,12 @@ export default function Dashboard() {
     {
       label:'À vendre',
       value: aVendre.length,
-      sub: 'Statut à vendre',
+      sub: aRenouveler.length > 0 ? `${aRenouveler.length} à renouveler (+3.5a)` : 'Statut à vendre',
       icon: <Tag size={18}/>,
-      iconBg: aVendre.length > 0 ? AMBER : GREEN,
-      cardBg: aVendre.length > 0 ? '#FFFBEB' : '#F0FFF4',
-      cardBorder: aVendre.length > 0 ? '#FCD34D' : '#86EFAC',
-      valueColor: aVendre.length > 0 ? AMBER : GREEN,
+      iconBg: aVendre.length > 0 ? AMBER : aRenouveler.length > 0 ? RED : GREEN,
+      cardBg: aVendre.length > 0 ? '#FFFBEB' : aRenouveler.length > 0 ? '#FFF5F5' : '#F0FFF4',
+      cardBorder: aVendre.length > 0 ? '#FCD34D' : aRenouveler.length > 0 ? '#FECACA' : '#86EFAC',
+      valueColor: aVendre.length > 0 ? AMBER : aRenouveler.length > 0 ? RED : GREEN,
     },
     {
       label:'Clients',

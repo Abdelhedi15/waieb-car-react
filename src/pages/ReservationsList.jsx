@@ -346,14 +346,13 @@ const ReservationsList = () => {
     }
   };
 
-  // ✅ Fenêtre hier + aujourd'hui
+  // ✅ Seulement le jour de fin (date_fin === today)
   const getReservationsAInspecter = () => {
     const today = new Date(); today.setHours(0,0,0,0);
-    const hier = new Date(today); hier.setDate(hier.getDate() - 1);
     return reservations.filter(r => {
       if (r.statut !== 'confirmée' || r.inspection_retour_faite) return false;
       const fin = new Date(r.date_fin); fin.setHours(0,0,0,0);
-      return fin >= hier && fin <= today;
+      return fin.getTime() === today.getTime();
     });
   };
 
@@ -394,8 +393,8 @@ const ReservationsList = () => {
     const hier = new Date(today); hier.setDate(hier.getDate() - 1);
     const finA = new Date(a.date_fin); finA.setHours(0,0,0,0);
     const finB = new Date(b.date_fin); finB.setHours(0,0,0,0);
-    const urgentA = finA >= hier && finA <= today && a.statut === 'confirmée' && !a.inspection_retour_faite;
-    const urgentB = finB >= hier && finB <= today && b.statut === 'confirmée' && !b.inspection_retour_faite;
+    const urgentA = finA.getTime() === today.getTime() && a.statut === 'confirmée' && !a.inspection_retour_faite;
+    const urgentB = finB.getTime() === today.getTime() && b.statut === 'confirmée' && !b.inspection_retour_faite;
     if (urgentA && !urgentB) return -1;
     if (!urgentA && urgentB) return 1;
     return b.id - a.id;
@@ -490,9 +489,8 @@ const ReservationsList = () => {
           const statut = statutConfig[r.statut] || { bg: '#F1F5F9', color: '#64748B', label: r.statut, icon: null };
           const isSolde = solde && solde.montant_restant <= 0;
           const today = new Date(); today.setHours(0,0,0,0);
-          const hier = new Date(today); hier.setDate(hier.getDate() - 1);
           const dateFin = new Date(r.date_fin); dateFin.setHours(0,0,0,0);
-          const needsRetour = dateFin >= hier && dateFin <= today && r.statut === 'confirmée' && !r.inspection_retour_faite;
+          const needsRetour = dateFin.getTime() === today.getTime() && r.statut === 'confirmée' && !r.inspection_retour_faite;
           const hasAccidentNoReplacement = r.a_accident && !r.vehicule_remplace && new Date(r.date_debut) >= today && !isSolde;
 
           return (

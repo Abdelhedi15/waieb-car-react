@@ -11,6 +11,7 @@ const NAVY  = '#1B3A6B';
 const AMBER = '#E8A020';
 const GREEN = '#16A34A';
 const RED   = '#DC2626';
+const PURPLE = '#7C3AED';
 
 const IMMAT_PHOTOS = {
   '240TN5082': 'https://i.ibb.co/FZmVWK6/vec1.jpg',
@@ -43,9 +44,19 @@ const getPhoto = (v) => {
   return IMMAT_PHOTOS[v.immatriculation] || DEFAULT_PHOTO;
 };
 
-// ✅ FIX : détection RDV par statut Django, pas par les notes
-const isRdvEspeces = (r) => r.statut === 'en_attente_rdv';
-const isPending = (r) => ['en_attente', 'en_attente_rdv'].includes(r.statut);
+// ✅ FIX — Django n'a PAS de statut "en_attente_rdv"
+// Les deux modes arrivent en "en_attente"
+// Détection espèces : notes contient rdv/espèces OU acompte_paye = false ET acompte > 0
+// Les réservations carte mobile : acompte_paye = true (paiement Stripe effectué)
+const isRdvEspeces = (r) => {
+  const notes = (r.notes || '').toLowerCase();
+  if (notes.includes('rdv') || notes.includes('espèces') || notes.includes('especes') || notes.includes('espece')) return true;
+  // Fallback : si acompte_paye = false → paiement pas encore effectué = espèces/rdv
+  if (r.acompte_paye === false && parseFloat(r.acompte || 0) > 0) return true;
+  return false;
+};
+// Toutes les réservations en attente (les deux modes)
+const isPending = (r) => r.statut === 'en_attente';
 
 const Confirmations = () => {
   const [reservations, setReservations] = useState([]);
@@ -55,7 +66,7 @@ const Confirmations = () => {
   const [processing,   setProcessing]   = useState({});
   const [filter,       setFilter]       = useState('all');
   const [lastRefresh,  setLastRefresh]  = useState(new Date());
-  const [toast,        setToast]        = useState(null); // { msg, type }
+  const [toast,        setToast]        = useState(null);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -78,13 +89,15 @@ const Confirmations = () => {
     return () => clearInterval(iv);
   }, [fetchAll]);
 
-  // ✅ FIX — filtrage par statut Django réel
-  const pending      = reservations.filter(isPending);
-  const rdvPending   = pending.filter(isRdvEspeces);          // statut='en_attente_rdv'
-  const directPending = pending.filter(r => !isRdvEspeces(r)); // statut='en_attente' (carte ou mobile)
+  // ✅ Toutes les réservations en attente (statut = en_attente)
+  const pending       = reservations.filter(isPending);
+  // ✅ RDV espèces = en_attente avec notes contenant rdv/espèces
+  const rdvPending    = pending.filter(isRdvEspeces);
+  // ✅ Carte/mobile = en_attente SANS note rdv/espèces
+  const cartePending  = pending.filter(r => !isRdvEspeces(r));
 
-  const displayed = filter === 'rdv'         ? rdvPending
-                  : filter === 'reservation' ? directPending
+  const displayed = filter === 'rdv'   ? rdvPending
+                  : filter === 'carte' ? cartePending
                   : pending;
 
   const showToast = (msg, type = 'success') => {
@@ -92,13 +105,11 @@ const Confirmations = () => {
     setTimeout(() => setToast(null), 4000);
   };
 
-  // ✅ FIX — handleAction envoie email + message visible
+  // ✅ handleAction — PATCH statut + email envoyé par Django automatiquement
   const handleAction = async (id, statut) => {
-    const label = statut === 'confirmée' ? 'confirmée' : 'annulée';
     setProcessing(p => ({ ...p, [id]: statut }));
     try {
       await api.patch(`/reservations/${id}/`, { statut });
-      // Le backend (views.py partial_update) envoie déjà l'email automatiquement
       await fetchAll();
       showToast(
         statut === 'confirmée'
@@ -130,7 +141,7 @@ const Confirmations = () => {
   return (
     <div style={{ position: 'relative' }}>
 
-      {/* ✅ Toast notification */}
+      {/* Toast notification */}
       {toast && (
         <div style={{
           position: 'fixed', top: '20px', right: '24px', zIndex: 9999,
@@ -141,7 +152,7 @@ const Confirmations = () => {
           boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
           fontWeight: '700', fontSize: '14px',
           display: 'flex', alignItems: 'center', gap: '10px',
-          maxWidth: '420px', animation: 'slideIn 0.3s ease',
+          maxWidth: '420px',
         }}>
           {toast.type === 'success'
             ? <CheckCircle size={18} color="#16A34A" />
@@ -175,9 +186,9 @@ const Confirmations = () => {
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '14px', marginBottom: '22px' }}>
         {[
-          { label: 'En attente total',    value: pending.length,        color: AMBER,     bg: '#FEF3DC', icon: <Clock size={18} />,        key: 'all' },
-          { label: 'Réservations carte',  value: directPending.length,  color: NAVY,      bg: '#EFF4FB', icon: <Smartphone size={18} />,    key: 'reservation' },
-          { label: 'RDV Espèces',         value: rdvPending.length,     color: '#7C3AED', bg: '#F3EEFF', icon: <CalendarDays size={18} />,  key: 'rdv' },
+          { label: 'En attente total',    value: pending.length,      color: AMBER,  bg: '#FEF3DC', icon: <Clock size={18} />,        key: 'all' },
+          { label: 'Paiement carte',      value: cartePending.length, color: NAVY,   bg: '#EFF4FB', icon: <CreditCard size={18} />,    key: 'carte' },
+          { label: 'RDV Espèces',         value: rdvPending.length,   color: PURPLE, bg: '#F3EEFF', icon: <CalendarDays size={18} />,  key: 'rdv' },
         ].map(s => (
           <div key={s.key} onClick={() => setFilter(s.key)}
             className="card"
@@ -195,24 +206,24 @@ const Confirmations = () => {
         ))}
       </div>
 
-      {/* ✅ Légende des statuts */}
+      {/* Légende */}
       <div style={{ background: '#F8FAFC', borderRadius: '10px', padding: '10px 16px', marginBottom: '16px', display: 'flex', gap: '20px', flexWrap: 'wrap', fontSize: '12px', color: '#64748B' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: NAVY, display: 'inline-block' }}></span>
-          <strong>En attente</strong> — paiement carte enregistré, en cours de traitement
+          <CreditCard size={13} color={NAVY}/>
+          <strong>Paiement carte</strong> — réservation mobile, acompte payé en ligne, à confirmer par l'admin
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#7C3AED', display: 'inline-block' }}></span>
-          <strong>En attente RDV</strong> — paiement espèces, RDV fixé, confirmation manuelle requise
+          <CalendarDays size={13} color={PURPLE}/>
+          <strong>RDV Espèces</strong> — paiement au bureau, RDV fixé, à confirmer après paiement reçu
         </span>
       </div>
 
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '18px' }}>
         {[
-          { key: 'all',         label: `Tous (${pending.length})` },
-          { key: 'reservation', label: `💳 Carte (${directPending.length})` },
-          { key: 'rdv',         label: `📅 RDV Espèces (${rdvPending.length})` },
+          { key: 'all',   label: `Tous (${pending.length})` },
+          { key: 'carte', label: `💳 Carte (${cartePending.length})` },
+          { key: 'rdv',   label: `📅 RDV Espèces (${rdvPending.length})` },
         ].map(t => (
           <button key={t.key} onClick={() => setFilter(t.key)}
             style={{
@@ -246,11 +257,12 @@ const Confirmations = () => {
           const client  = getClient(r.client);
           const vehicle = getVehicle(r.vehicle);
           const d       = days(r.date_debut, r.date_fin);
-          const isRdv   = isRdvEspeces(r); // ✅ basé sur statut Django réel
+          const isRdv   = isRdvEspeces(r);
           const proc    = processing[r.id];
 
-          // Extraire la date/heure RDV depuis les notes si disponible
-          const rdvInfo = r.notes?.match(/RDV[:\s]+([^\|]+)/i)?.[1]?.trim() || null;
+          // Extraire info RDV depuis les notes
+          const rdvMatch = r.notes?.match(/(\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2}).*?(\d{2}:\d{2})/);
+          const rdvInfo = rdvMatch ? `${rdvMatch[1]} à ${rdvMatch[2]}` : (r.notes || null);
 
           return (
             <div key={r.id} style={{
@@ -258,7 +270,7 @@ const Confirmations = () => {
               border: `2px solid ${isRdv ? '#C4B5FD' : '#93C5FD'}`,
               boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
             }}>
-              {/* Card header */}
+              {/* Header */}
               <div style={{
                 padding: '12px 20px', display: 'flex', alignItems: 'center',
                 justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px',
@@ -273,10 +285,12 @@ const Confirmations = () => {
                     padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700',
                     display: 'flex', alignItems: 'center', gap: '5px',
                   }}>
-                    {isRdv ? <><CalendarDays size={11}/> RDV Espèces</> : <><CreditCard size={11}/> Paiement Carte</>}
+                    {isRdv
+                      ? <><CalendarDays size={11}/> RDV Espèces</>
+                      : <><CreditCard size={11}/> Paiement Carte</>}
                   </span>
                   <span style={{ background: '#FEF9C3', color: '#92580A', padding: '3px 10px', borderRadius: '10px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Clock size={11} /> {isRdv ? 'En attente RDV' : 'En attente'}
+                    <Clock size={11} /> En attente de confirmation
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#64748B' }}>
@@ -288,7 +302,7 @@ const Confirmations = () => {
                 </div>
               </div>
 
-              {/* Card body */}
+              {/* Body */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 0 }}>
 
                 {/* Client */}
@@ -316,7 +330,7 @@ const Confirmations = () => {
                   )}
                 </div>
 
-                {/* Vehicle */}
+                {/* Véhicule */}
                 <div style={{ padding: '16px 20px', borderRight: '1px solid #F0F2F5' }}>
                   <div style={{ fontSize: '10.5px', fontWeight: '800', color: GREEN, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <Car size={12} /> Véhicule
@@ -337,7 +351,7 @@ const Confirmations = () => {
                   )}
                 </div>
 
-                {/* Financial + Actions */}
+                {/* Financier + Actions */}
                 <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                   <div>
                     <div style={{ fontSize: '10.5px', fontWeight: '800', color: AMBER, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -355,31 +369,30 @@ const Confirmations = () => {
                       ))}
                     </div>
 
-                    {/* ✅ Afficher RDV si espèces */}
-                    {isRdv && rdvInfo && (
-                      <div style={{ background: '#EDE9FE', borderRadius: '8px', padding: '8px 10px', fontSize: '12px', color: '#7C3AED', marginBottom: '8px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <CalendarDays size={12} /> RDV : {rdvInfo}
+                    {/* Mode paiement */}
+                    <div style={{ background: isRdv ? '#F3EEFF' : '#EFF6FF', borderRadius: '8px', padding: '8px 10px', fontSize: '12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px', color: isRdv ? PURPLE : NAVY, fontWeight: '600' }}>
+                      {isRdv
+                        ? <><CalendarDays size={12}/> Espèces au bureau</>
+                        : <><CreditCard size={12}/> Carte bancaire — acompte débité</>}
+                    </div>
+
+                    {/* Info RDV si espèces */}
+                    {isRdv && r.notes && (
+                      <div style={{ background: '#EDE9FE', borderRadius: '8px', padding: '8px 10px', fontSize: '12px', color: PURPLE, marginBottom: '8px', fontWeight: '600' }}>
+                        📅 {r.notes}
                       </div>
                     )}
 
-                    {/* ✅ Mode paiement badge */}
-                    <div style={{ background: '#F8FAFC', borderRadius: '8px', padding: '8px 10px', fontSize: '12px', color: '#64748B', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      {isRdv
-                        ? <><Banknote size={12} /> Mode : <strong>Espèces au bureau</strong></>
-                        : <><CreditCard size={12} /> Mode : <strong>Carte bancaire</strong></>}
-                    </div>
-
-                    {r.notes && !rdvInfo && (
-                      <div style={{ background: '#F8FAFC', borderRadius: '8px', padding: '8px 10px', fontSize: '12px', color: '#64748B', marginBottom: '8px' }}>
-                        📝 {r.notes}
+                    {/* Info carte */}
+                    {!isRdv && (
+                      <div style={{ background: '#FEF9C3', borderRadius: '8px', padding: '8px 10px', fontSize: '11px', color: '#92580A', marginBottom: '8px' }}>
+                        ⚠️ Vérifier le paiement avant de confirmer
                       </div>
                     )}
                   </div>
 
-                  {/* ✅ Action buttons avec label adapté au mode */}
+                  {/* Boutons d'action */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-
-                    {/* Bouton Confirmer */}
                     <button onClick={() => handleAction(r.id, 'confirmée')} disabled={!!proc}
                       style={{
                         padding: '10px', background: proc === 'confirmée' ? '#86EFAC' : GREEN,
@@ -389,10 +402,8 @@ const Confirmations = () => {
                         opacity: proc ? 0.7 : 1, transition: 'all 0.15s',
                       }}>
                       <CheckCircle size={15} />
-                      {proc === 'confirmée' ? 'Confirmation...' : isRdv ? '✅ Valider RDV' : '✅ Confirmer'}
+                      {proc === 'confirmée' ? 'Confirmation...' : isRdv ? '✅ Valider RDV & Confirmer' : '✅ Confirmer la réservation'}
                     </button>
-
-                    {/* Bouton Refuser */}
                     <button onClick={() => handleAction(r.id, 'annulée')} disabled={!!proc}
                       style={{
                         padding: '10px', background: 'white', color: RED,
@@ -402,10 +413,8 @@ const Confirmations = () => {
                         opacity: proc ? 0.7 : 1, transition: 'all 0.15s',
                       }}>
                       <XCircle size={15} />
-                      {proc === 'annulée' ? 'Annulation...' : isRdv ? '❌ Refuser RDV' : '❌ Refuser'}
+                      {proc === 'annulée' ? 'Annulation...' : '❌ Refuser'}
                     </button>
-
-                    {/* ✅ Info email */}
                     <div style={{ fontSize: '10px', color: '#94A3B8', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                       <Mail size={10} /> Email automatique envoyé au client
                     </div>
@@ -449,7 +458,7 @@ const Confirmations = () => {
                       </div>
                     </div>
                     <span style={{ background: isOk ? '#DCFCE7' : '#FEE2E2', color: isOk ? GREEN : RED, padding: '3px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '700', flexShrink: 0 }}>
-                      {isOk ? 'Confirmée' : 'Annulée'}
+                      {isOk ? 'Confirmée ✅' : 'Annulée ❌'}
                     </span>
                   </div>
                 );
